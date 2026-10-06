@@ -1,30 +1,34 @@
-import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:pos_product/providers/cart_provider.dart';
+import 'package:pos_product/providers/favorite_provider.dart';
 import 'package:pos_product/providers/navigation_provider.dart';
 import 'package:pos_product/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 
 void main() {
   runApp(
-    DevicePreview(
-      builder: (context) {
-        return MultiProvider(
-          providers: [
-            ChangeNotifierProvider(create: (_) => CartProvider()),
-            ChangeNotifierProvider(create: (_) => NavigationProvider()),
-          ],
-          child: const MyApp(),
-        );
-      },
-    ),
-    // MultiProvider(
-    //   providers: [
-    //     ChangeNotifierProvider(create: (_) => CartProvider()),
-    //     ChangeNotifierProvider(create: (_) => NavigationProvider()),
-    //   ],
-    //   child: const MyApp(),
+    // DevicePreview(
+    //   builder: (context) {
+    //     return MultiProvider(
+    //       providers: [
+    //         ChangeNotifierProvider(create: (_) => CartProvider()),
+    //         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+    //       ],
+    //       child: const MyApp(),
+    //     );
+    //   },
     // ),
+
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(
+          create: (_) => FavoriteProvider()..load(),
+        ),
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+      ],
+      child: const MyApp(),
+    ),
   );
 }
 

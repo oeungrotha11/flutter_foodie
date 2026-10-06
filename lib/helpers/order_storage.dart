@@ -26,4 +26,18 @@ class OrderStorage {
       orders.map((item) => jsonEncode(item.toJson())).toList(),
     );
   }
+
+  static Future<void> updateOrder(Order updatedOrder) async {
+    final orders = await loadOrders();
+    final index = orders.indexWhere((order) => order.id == updatedOrder.id);
+    if (index == -1) {
+      throw StateError('Order ${updatedOrder.id} was not found.');
+    }
+    orders[index] = updatedOrder;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _key,
+      orders.map((order) => jsonEncode(order.toJson())).toList(),
+    );
+  }
 }

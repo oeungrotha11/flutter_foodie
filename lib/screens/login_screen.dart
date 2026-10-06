@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lottie/lottie.dart';
 import 'package:pos_product/screens/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -287,8 +288,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Email
                   _buildTextFormField(
+                    labelText: "Email",
                     controller: emailController,
-                    hintText: "Email",
+                    hintText: "Enter email",
                     icon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
 
@@ -313,8 +315,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Password
                   _buildTextFormField(
+                    labelText: "Password",
                     controller: passwordController,
-                    hintText: "Password",
+                    hintText: "Enter password",
                     icon: Icons.lock,
                     obscureText: _obscurePassword,
 
@@ -410,14 +413,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   _buildSocialLoginButton(
                     label: 'Continue with Facebook',
-                    leading: const CircleAvatar(
-                      radius: 12,
-                      backgroundColor: Color(0xFF1877F2),
-                      child: Icon(
-                        Icons.facebook,
-                        size: 16,
-                        color: Colors.white,
-                      ),
+                    leading: SvgPicture.asset(
+                      'assets/svg/fb.svg',
+                      // colorFilter: const ColorFilter.mode(
+                      //   Color.fromARGB(255, 5, 0, 156),
+                      //   BlendMode.srcIn,
+                      // ),
+                      width: 24.0,
+                      height: 24.0,
                     ),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -433,24 +436,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   _buildSocialLoginButton(
                     label: 'Continue with Google',
-                    leading: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'G',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red.shade600,
-                          ),
-                        ),
-                      ),
+                    leading: SvgPicture.asset(
+                      'assets/svg/google.svg',
+                      // colorFilter: const ColorFilter.mode(
+                      //   Color.fromARGB(255, 5, 0, 156),
+                      //   BlendMode.srcIn,
+                      // ),
+                      width: 24.0,
+                      height: 24.0,
                     ),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -525,7 +518,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return SizedBox(
       width: double.infinity,
       height: 42,
-      child: OutlinedButton.icon(
+      child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.grey, width: 0.8),
@@ -533,10 +526,26 @@ class _LoginScreenState extends State<LoginScreen> {
           foregroundColor: Colors.black87,
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
-        icon: leading,
-        label: Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        child: Row(
+          children: [
+            // 1. Keeps the icon size unified on the left
+            SizedBox(width: 24, height: 24, child: leading),
+
+            // 2. Center the text in the remaining available row width
+            Expanded(
+              child: Text(
+                label,
+                textAlign:
+                    TextAlign.center, // Forces text grids to perfectly align
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            // 3. Invisible spacer matching the icon width to keep text perfectly centered
+          const SizedBox(width: 24), 
+          ],
         ),
       ),
     );
@@ -545,6 +554,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String hintText,
+    required String labelText,
     required IconData icon,
     required String? Function(String?) validator,
     bool obscureText = false,
@@ -556,15 +566,22 @@ class _LoginScreenState extends State<LoginScreen> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
+       autovalidateMode: AutovalidateMode.onUserInteractionIfError,
 
       style: const TextStyle(fontSize: 12),
 
       decoration: InputDecoration(
+        labelText: labelText,
         hintText: hintText,
+        prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
 
+        labelStyle: TextStyle(fontSize:11,  color: Colors.grey),
         hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
 
-        prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 35,
+          minHeight: 35,
+        ),
 
         suffixIcon: suffixIcon,
 

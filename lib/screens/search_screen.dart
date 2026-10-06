@@ -18,6 +18,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  String _selectedCategory = 'All';
 
   @override
   void dispose() {
@@ -27,14 +28,101 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<FoodItem> get _filteredItems {
     final query = _query.trim().toLowerCase();
-    if (query.isEmpty) {
-      return MockData.foodItems;
-    }
-
     return MockData.foodItems.where((food) {
-      return food.name.toLowerCase().contains(query) ||
-          food.subtitle.toLowerCase().contains(query);
+      final matchesCategory =
+          _selectedCategory == 'All' || food.category == _selectedCategory;
+      final matchesQuery =
+          query.isEmpty ||
+          food.name.toLowerCase().contains(query) ||
+          food.subtitle.toLowerCase().contains(query) ||
+          food.category.toLowerCase().contains(query);
+      return matchesCategory && matchesQuery;
     }).toList();
+  }
+
+  Widget _buildCategoryFilters() {
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: MockData.categories.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final category = MockData.categories[index];
+          final isSelected = _selectedCategory == category;
+
+          return GestureDetector(
+            onTap: () => setState(() => _selectedCategory = category),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFE53935) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Text(
+                category,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey[600],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGroupedResults(List<FoodItem> results) {
+    final categories = MockData.categories
+        .skip(1)
+        .where((category) => results.any((food) => food.category == category));
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24),
+      children: [
+        for (final category in categories)
+          _buildCategorySection(
+            category,
+            results.where((food) => food.category == category).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCategorySection(String category, List<FoodItem> foods) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              category,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          GridView.builder(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: foods.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 15,
+              mainAxisSpacing: 15,
+            ),
+            itemBuilder: (context, index) => FoodCard(
+              food: foods[index],
+              onAddTap: () => _addFoodToCart(foods[index]),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _addFoodToCart(FoodItem food) {
@@ -107,7 +195,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               _searchController.clear();
                               setState(() => _query = '');
                             },
-                            icon: const Icon(Icons.clear, color: Colors.grey,),
+                            icon: const Icon(Icons.clear, color: Colors.grey),
                           ),
                     filled: true,
                     fillColor: Colors.white,
@@ -117,10 +205,14 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                _buildCategoryFilters(),
+                const SizedBox(height: 20),
                 Text(
                   _query.trim().isEmpty
-                      ? 'All food'
+                      ? (_selectedCategory == 'All'
+                            ? 'Browse by category'
+                            : _selectedCategory)
                       : '${results.length} result${results.length == 1 ? '' : 's'}',
                   style: const TextStyle(
                     fontSize: 20,
@@ -137,6 +229,8 @@ class _SearchScreenState extends State<SearchScreen> {
                             style: TextStyle(color: Colors.grey, fontSize: 16),
                           ),
                         )
+                      : _selectedCategory == 'All'
+                      ? _buildGroupedResults(results)
                       : GridView.builder(
                           padding: const EdgeInsets.only(bottom: 24),
                           itemCount: results.length,

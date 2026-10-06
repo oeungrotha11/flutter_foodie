@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -127,7 +128,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _buildTextFormField(
                     labelText: "Name",
                     controller: nameController,
-                    hintText: "Name",
+                    hintText: "Your name",
                     prefixIcon: Icons.person,
 
                     validator: (value) {
@@ -144,104 +145,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
 
                   const SizedBox(height: 14),
-
-                  // phone
-                  // _buildTextFormField(
-                  //   controller: phoneController,
-                  //   hintText: "phone",
-                  //   icon: Icons.call,
-
-                  //   validator: (value) {
-                  //     if (value == null || value.trim().isEmpty) {
-                  //       return 'Please enter your phone number';
-                  //     }
-
-                  //     // if (value.trim().length < 2) {
-                  //     //   return 'Name must be at least 2 characters';
-                  //     // }
-
-                  //     return null;
-                  //   },
-                  // ),
-                  IntlPhoneField(
+                  
+                  _buildPhoneFormField(
                     controller: phoneController,
-                    initialCountryCode: 'KH',
-                    disableLengthCheck: true,
-
-                    onChanged: (phone) {
-                      completePhoneNumber = phone.completeNumber;
-                    },
-
-                    style: const TextStyle(fontSize: 12),
-
-                    decoration: InputDecoration(
-                      hintText: 'Phone number',
-                      hintStyle: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
-
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: const BorderSide(
-                          color: Colors.grey,
-                          width: 0.8,
-                        ),
-                      ),
-
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: const BorderSide(
-                          color: Colors.grey,
-                          width: 0.8,
-                        ),
-                      ),
-
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: const BorderSide(
-                          color: Color(0xFFF5233B),
-                          width: 1,
-                        ),
-                      ),
-
-                      errorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: const BorderSide(
-                          color: Colors.red,
-                          width: 0.8,
-                        ),
-                      ),
-
-                      focusedErrorBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                        borderSide: const BorderSide(
-                          color: Colors.red,
-                          width: 1,
-                        ),
-                      ),
-
-                      errorStyle: const TextStyle(fontSize: 10),
-                    ),
-
-                    dropdownIconPosition: IconPosition.trailing,
-
-                    flagsButtonPadding: const EdgeInsets.only(left: 5),
-
-                    dropdownIcon: const Icon(Icons.arrow_drop_down, size: 18),
-
-                    validator: (value) {
-                      if (value == null || value.number.isEmpty) {
-                        return 'Please enter your phone number';
-                      }
-
-                      return null;
-                    },
+                    onChanged: (phone) =>
+                        completePhoneNumber = phone.completeNumber,
+                    validator: (value) =>
+                        (value == null || value.number.isEmpty)
+                        ? 'Please enter your phone number'
+                        : null,
                   ),
 
                   const SizedBox(height: 14),
@@ -250,7 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _buildTextFormField(
                     labelText: "Email",
                     controller: emailController,
-                    hintText: "Email",
+                    hintText: "Enter email",
                     prefixIcon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
 
@@ -277,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _buildTextFormField(
                     labelText: "Password",
                     controller: passwordController,
-                    hintText: "Password",
+                    hintText: "Enter password",
                     prefixIcon: Icons.lock,
                     obscureText: _obscurePassword,
 
@@ -321,7 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _buildTextFormField(
                     labelText: "Confirm password",
                     controller: confirmPasswordController,
-                    hintText: "Confirm Password",
+                    hintText: "Enter confirm password",
                     prefixIcon: Icons.verified,
                     obscureText: _obscureConfirmPassword,
 
@@ -445,6 +357,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  InputDecoration _buildInputDecoration({
+    String? labelText,
+    required String hintText,
+    Widget? prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
+
+      labelStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+      hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+
+      prefixIconConstraints: const BoxConstraints(minWidth: 35, minHeight: 35),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      errorStyle: const TextStyle(fontSize: 10),
+
+      // Unified Borders
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.red, width: 0.8),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.red, width: 1),
+      ),
+    );
+  }
+
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String labelText,
@@ -462,56 +417,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
       onChanged: onChanged,
       keyboardType: keyboardType,
       obscureText: obscureText,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
-
+      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
       style: const TextStyle(fontSize: 12),
-
-      decoration: InputDecoration(
+      decoration: _buildInputDecoration(
         labelText: labelText,
         hintText: hintText,
         prefixIcon: Icon(prefixIcon, size: 16, color: const Color(0xFFF5233B)),
-
-        labelStyle: TextStyle(fontSize:11,  color: Colors.black),
-        hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-
-        prefixIconConstraints: const BoxConstraints(
-          minWidth: 35,
-          minHeight: 35,
-        ),
-
         suffixIcon: suffixIcon,
+      ),
+    );
+  }
 
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-        ),
-
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-        ),
-
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
-        ),
-
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.red, width: 0.8),
-        ),
-
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.red, width: 1),
-        ),
-
-        errorStyle: const TextStyle(fontSize: 10),
+  Widget _buildPhoneFormField({
+    required TextEditingController controller,
+    required void Function(PhoneNumber) onChanged,
+    required String? Function(PhoneNumber?) validator,
+    String hintText = 'Phone number',
+    String initialCountryCode = 'KH',
+  }) {
+    return IntlPhoneField(
+      controller: controller,
+      initialCountryCode: initialCountryCode,
+      disableLengthCheck: true,
+      onChanged: onChanged,
+      style: const TextStyle(fontSize: 12),
+      dropdownIconPosition: IconPosition.trailing,
+      flagsButtonPadding: const EdgeInsets.only(left: 5),
+      dropdownIcon: const Icon(Icons.arrow_drop_down, size: 18),
+      validator: validator,
+      decoration: _buildInputDecoration(
+        hintText: hintText,
+        // Pass null to prefixIcon so IntlPhoneField can put the flag menu there naturally
       ),
     );
   }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pos_product/screens/product_detail.dart';
+import 'package:provider/provider.dart';
 
 import '../models/food_item.dart';
+import '../providers/favorite_provider.dart';
 
 class FoodCard extends StatelessWidget {
   final FoodItem food;
@@ -54,17 +56,14 @@ class FoodCard extends StatelessWidget {
                   Positioned(
                     bottom: 0,
                     left: 0,
-
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 4,
                       ),
-
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.05),
@@ -72,13 +71,10 @@ class FoodCard extends StatelessWidget {
                           ),
                         ],
                       ),
-
                       child: Row(
                         children: [
                           const Icon(Icons.star, color: Colors.amber, size: 14),
-
                           const SizedBox(width: 4),
-
                           Text(
                             food.rating.toString(),
                             style: const TextStyle(
@@ -88,6 +84,40 @@ class FoodCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Consumer<FavoriteProvider>(
+                      builder: (context, favorites, _) {
+                        final isFavorite = favorites.isFavorite(food.id);
+                        return Material(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            tooltip: isFavorite
+                                ? 'Remove from favorites'
+                                : 'Add to favorites',
+                            constraints: const BoxConstraints.tightFor(
+                              width: 36,
+                              height: 36,
+                            ),
+                            padding: EdgeInsets.zero,
+                            onPressed: () =>
+                                favorites.toggleFavorite(food.id),
+                            icon: Icon(
+                              isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: isFavorite
+                                  ? const Color(0xFFF5233B)
+                                  : Colors.black54,
+                              size: 20,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
