@@ -75,7 +75,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     body: Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         children: [
           const Text(
             'Choose a new password for your account.',
@@ -109,14 +109,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ? 'Passwords do not match'
                 : null,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           SizedBox(
-            height: 50,
+            height: 40,
             child: ElevatedButton(
               onPressed: _loading ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF5233B),
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFF5233B),
+                disabledForegroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
               ),
               child: _loading
                   ? const SizedBox.square(
@@ -126,7 +132,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('UPDATE PASSWORD'),
+                  : const Text(
+                      'UPDATE PASSWORD',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -153,15 +165,58 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     controller: controller,
     obscureText: obscure,
     validator: validator,
+    autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+    style: const TextStyle(fontSize: 12),
     decoration: InputDecoration(
       labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      suffixIcon: IconButton(
-        onPressed: toggle,
-        icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+      hintText: 'Enter ${label.toLowerCase()}',
+      prefixIcon: const Icon(
+        Icons.lock,
+        size: 16,
+        color: Color(0xFFF5233B),
       ),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      suffixIcon: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 35, minHeight: 35),
+        splashRadius: 18,
+        onPressed: toggle,
+        icon: Icon(
+          obscure ? Icons.visibility_off : Icons.visibility,
+          size: 17,
+          color: Colors.black87,
+        ),
+      ),
+      labelStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+      hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+      prefixIconConstraints: const BoxConstraints(
+        minWidth: 35,
+        minHeight: 35,
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 12,
+      ),
+      errorStyle: const TextStyle(fontSize: 10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.red, width: 0.8),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(5),
+        borderSide: const BorderSide(color: Colors.red, width: 1),
+      ),
     ),
   );
 }
