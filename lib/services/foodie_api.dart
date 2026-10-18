@@ -215,12 +215,17 @@ class FoodieApi {
     final data = await _api.get('/api/v1/reward-rules', auth: true);
     dynamic rows = data;
     if (data is Map) {
-      rows = data['content'] ??
-          data['items'] ??
-          data['rewardRules'] ??
-          data['rules'] ??
-          data['data'] ??
-          (data.containsKey('rewardRuleId') ? [data] : []);
+      final envelope = data['payload'] ?? data;
+      if (envelope is Map) {
+        rows = envelope['content'] ??
+            envelope['items'] ??
+            envelope['rewardRules'] ??
+            envelope['rules'] ??
+            envelope['data'] ??
+            (envelope.containsKey('rewardRuleId') ? [envelope] : []);
+      } else {
+        rows = envelope;
+      }
     }
     if (rows is! List) {
       throw const ApiException('The server returned an invalid reward rule list.');
