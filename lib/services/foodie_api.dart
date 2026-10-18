@@ -3,6 +3,7 @@ import '../models/food_category.dart';
 import '../models/food_item.dart';
 import '../models/product_option.dart';
 import '../models/customer_reward.dart';
+import '../models/reward_rule.dart';
 
 class FoodieApi {
   FoodieApi._();
@@ -209,6 +210,27 @@ class FoodieApi {
 
   Future<dynamic> placeOrder(Map<String, dynamic> body) =>
       _api.post('/api/v1/orders', auth: true, body: body);
+
+  Future<List<RewardRule>> rewardRules() async {
+    final data = await _api.get('/api/v1/reward-rules', auth: true);
+    dynamic rows = data;
+    if (data is Map) {
+      rows = data['content'] ??
+          data['items'] ??
+          data['rewardRules'] ??
+          data['rules'] ??
+          data['data'] ??
+          (data.containsKey('rewardRuleId') ? [data] : []);
+    }
+    if (rows is! List) {
+      throw const ApiException('The server returned an invalid reward rule list.');
+    }
+    return rows
+        .whereType<Map>()
+        .map((row) => RewardRule.fromJson(Map<String, dynamic>.from(row)))
+        .where((rule) => rule.active)
+        .toList();
+  }
 
   Future<List<CustomerReward>> rewards() async {
     final data = await _api.get('/api/v1/rewards/me', auth: true);
