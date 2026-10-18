@@ -85,7 +85,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
           children: [
             _field(_addressController, 'Street address', Icons.home_outlined),
             const SizedBox(height: 14),
@@ -97,16 +97,23 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
               Icons.phone_outlined,
               keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
             SizedBox(
-              height: 52,
+              height: 40,
               child: ElevatedButton(
                 onPressed: _saveAddress,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFF5233B),
                   foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5),
+                  ),
                 ),
-                child: const Text('SAVE ADDRESS'),
+                child: const Text(
+                  'SAVE ADDRESS',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
@@ -126,14 +133,42 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
       keyboardType: keyboardType,
       validator: (value) =>
           value == null || value.trim().isEmpty ? 'Required' : null,
+      style: const TextStyle(fontSize: 12),
+      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: Colors.white,
+        hintText: 'Enter ${label.toLowerCase()}',
+        prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
+        labelStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+        hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+        prefixIconConstraints: const BoxConstraints(
+          minWidth: 35,
+          minHeight: 35,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        errorStyle: const TextStyle(fontSize: 10),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Colors.red, width: 0.8),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(5),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
         ),
       ),
     );
