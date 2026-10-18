@@ -138,12 +138,12 @@ class _ShopScreenState extends State<ShopScreen> {
       future: _rewardRulesFuture,
       builder: (context, snapshot) {
         final rules = snapshot.data;
-        final rule = rules == null
-            ? null
-            : rules.where((item) => item.active).firstOrNull;
-        if (rule == null) return const SizedBox.shrink();
-
+        if (rules == null || rules.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final rule = rules.first;
         final percent = (rule.discountRate * 100).round();
+
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -164,7 +164,11 @@ class _ShopScreenState extends State<ShopScreen> {
                   color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.card_giftcard, color: Color(0xFFFFD782), size: 27),
+                child: const Icon(
+                  Icons.card_giftcard,
+                  color: Color(0xFFFFD782),
+                  size: 27,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -183,8 +187,6 @@ class _ShopScreenState extends State<ShopScreen> {
                           ),
                         ),
                         const Spacer(),
-                        const Icon(Icons.stars_rounded, color: Color(0xFFFFD782), size: 15),
-                        const SizedBox(width: 3),
                         Text(
                           percent.toString() + '% OFF',
                           style: const TextStyle(
@@ -208,7 +210,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Earn after spending 
+                      'Earn after spending ' + r'
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ProductDetailScreen(food: food)),
@@ -429,12 +431,16 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
     return oldDelegate.child != child;
   }
 }
- + rule.minimumQualifyingSubtotal.toStringAsFixed(2) + '+',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+ +
+                          rule.minimumQualifyingSubtotal.toStringAsFixed(2) + '+',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Redeem on 
+                      'Redeem on ' + r'
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ProductDetailScreen(food: food)),
@@ -529,8 +535,6 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildShopRewardCard(),
                 ],
               ),
             ),
@@ -655,16 +659,25 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
     return oldDelegate.child != child;
   }
 }
- + rule.minimumRedemptionSubtotal.toStringAsFixed(2) + '+ orders · Valid ' + rule.validityDays.toString() + ' days',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+ +
+                          rule.minimumRedemptionSubtotal.toStringAsFixed(2) +
+                          '+ orders · Valid ' + rule.validityDays.toString() + ' days',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
                     ),
-                    if (rule.description != null && rule.description!.trim().isNotEmpty) ...[
+                    if (rule.description != null &&
+                        rule.description!.trim().isNotEmpty) ...[
                       const SizedBox(height: 5),
                       Text(
                         rule.description!,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white60, fontSize: 11),
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ],
@@ -772,8 +785,6 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildShopRewardCard(),
                 ],
               ),
             ),
