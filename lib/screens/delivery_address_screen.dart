@@ -70,6 +70,7 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Delivery address saved')),
     );
+    Navigator.pop(context);
   }
 
   @override
