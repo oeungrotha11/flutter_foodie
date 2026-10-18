@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pos_product/screens/home_screen.dart';
 import 'package:pos_product/screens/login_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../providers/favorite_provider.dart';
+import '../services/api_client.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -56,14 +58,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    // Get SharedPreferences
-    final SharedPreferences prefs =
-        await SharedPreferences.getInstance();
-
-    // Get saved token
-    final String? token = prefs.getString(
-      'sv11-12.pos_mobile.token',
-    );
+    final token = await ApiClient.instance.accessToken;
 
     if (!mounted) return;
 
@@ -78,6 +73,8 @@ class _SplashScreenState extends State<SplashScreen>
         (route) => false,
       );
     } else {
+      await context.read<FavoriteProvider>().load();
+      if (!mounted) return;
       // Token exists → Home
       Navigator.pushAndRemoveUntil(
         context,

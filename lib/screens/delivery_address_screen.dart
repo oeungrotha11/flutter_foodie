@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/foodie_api.dart';
+import '../services/api_client.dart';
+import '../widgets/foodie_sliver_app_bar.dart';
 
 class DeliveryAddressScreen extends StatefulWidget {
   const DeliveryAddressScreen({super.key});
@@ -22,9 +25,16 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
   Future<void> _loadAddress() async {
     final prefs = await SharedPreferences.getInstance();
-    _addressController.text = prefs.getString('delivery.address') ?? '';
-    _cityController.text = prefs.getString('delivery.city') ?? '';
-    _phoneController.text = prefs.getString('delivery.phone') ?? '';
+    try {
+      final data = await FoodieApi.instance.deliveryAddress();
+      _addressController.text = (data['address'] ?? prefs.getString('delivery.address') ?? '').toString();
+      _cityController.text = (data['city'] ?? prefs.getString('delivery.city') ?? '').toString();
+      _phoneController.text = (data['phone'] ?? prefs.getString('delivery.phone') ?? '').toString();
+    } catch (_) {
+      _addressController.text = prefs.getString('delivery.address') ?? '';
+      _cityController.text = prefs.getString('delivery.city') ?? '';
+      _phoneController.text = prefs.getString('delivery.phone') ?? '';
+    }
     if (mounted) setState(() {});
   }
 
@@ -38,10 +48,24 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
 
   Future<void> _saveAddress() async {
     if (!_formKey.currentState!.validate()) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('delivery.address', _addressController.text.trim());
-    await prefs.setString('delivery.city', _cityController.text.trim());
-    await prefs.setString('delivery.phone', _phoneController.text.trim());
+    try {
+      await FoodieApi.instance.saveDeliveryAddress(
+        address: _addressController.text.trim(),
+        city: _cityController.text.trim(),
+        phone: _phoneController.text.trim(),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('delivery.address', _addressController.text.trim());
+      await prefs.setString('delivery.city', _cityController.text.trim());
+      await prefs.setString('delivery.phone', _phoneController.text.trim());
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error is ApiException ? error.message : 'Unable to save delivery address.'),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Delivery address saved')),
@@ -52,12 +76,11 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
-      appBar: AppBar(
-        title: const Text('Delivery Address'),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
+      appBar: const FoodieAppBar(
+        title: 'Delivery Address',
+        showBackButton: true,
+        showSearchButton: false,
+        showCartButton: false,
       ),
       body: Form(
         key: _formKey,

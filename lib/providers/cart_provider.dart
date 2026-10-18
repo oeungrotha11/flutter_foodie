@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/food_item.dart';
 import '../models/cart_item.dart';
+import '../models/product_option.dart';
 
 class CartProvider extends ChangeNotifier {
   final List<CartItem> _items = [];
@@ -42,20 +43,31 @@ class CartProvider extends ChangeNotifier {
   void addToCart({
     required FoodItem food,
     required int quantity,
-    required int selectedSize,
-    required bool cheese,
-    required bool bacon,
+    List<ProductOption> selectedOptions = const [],
   }) {
     final item = CartItem(
       food: food,
       quantity: quantity,
-      selectedSize: selectedSize,
-      cheese: cheese,
-      bacon: bacon,
+      selectedOptions: List.unmodifiable(selectedOptions),
     );
 
     _items.add(item);
 
+    notifyListeners();
+  }
+
+  void updateItem({
+    required CartItem item,
+    required int quantity,
+    required List<ProductOption> selectedOptions,
+  }) {
+    final index = _items.indexOf(item);
+    if (index < 0) return;
+    _items[index] = CartItem(
+      food: item.food,
+      quantity: quantity,
+      selectedOptions: List.unmodifiable(selectedOptions),
+    );
     notifyListeners();
   }
 

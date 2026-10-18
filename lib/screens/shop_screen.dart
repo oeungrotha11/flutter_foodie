@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
-import 'package:pos_product/providers/cart_provider.dart';
-import 'package:pos_product/providers/navigation_provider.dart';
 import 'package:provider/provider.dart';
-import '../helpers/mock_data.dart';
+import '../providers/catalog_provider.dart';
 import '../models/food_item.dart';
+import 'product_detail.dart';
 import '../widgets/food_card.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
 
@@ -17,10 +18,8 @@ class ShopScreen extends StatefulWidget {
 
 class _ShopScreenState extends State<ShopScreen> {
   int selectedCategoryIndex = 0;
-  final ScrollController _scrollController = ScrollController();
-  late final Map<String, GlobalKey> _categoryKeys = {
-    for (final category in MockData.categories.skip(1)) category: GlobalKey(),
-  };
+  final ScrollController _categoryScrollController = ScrollController();
+  final Map<String, GlobalKey> _categoryChipKeys = {};
 
   final List<String> _slider = [
     'assets/images/a1.png',
@@ -30,323 +29,289 @@ class _ShopScreenState extends State<ShopScreen> {
 
   int currentSlideIndex = 0;
 
+  List<String> get _categories => context
+      .read<CatalogProvider>()
+      .categories
+      .map((category) => category.categoryName)
+      .toList(growable: false);
+  List<FoodItem> get _products => context.read<CatalogProvider>().products;
+
   @override
   void dispose() {
-    _scrollController.dispose();
+    _categoryScrollController.dispose();
     super.dispose();
   }
 
-  List<FoodItem> _foodItemsForCategory(String category) {
-    return MockData.foodItems
-        .where((food) => food.category == category)
-        .toList();
+  GlobalKey _chipKey(String category) {
+    return _categoryChipKeys.putIfAbsent(category, GlobalKey.new);
+  }
+
+  void _scheduleSelectedCategoryReveal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _categories.isEmpty) return;
+
+      final index = selectedCategoryIndex.clamp(0, _categories.length - 1);
+      final key = _chipKey(_categories[index]);
+      final targetContext = key.currentContext;
+      if (targetContext == null) return;
+
+      unawaited(
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          alignment: 0.5,
+        ),
+      );
+    });
   }
 
   Future<void> _selectCategory(int index) async {
+    if (index < 0 || index >= _categories.length) return;
     setState(() {
       selectedCategoryIndex = index;
     });
-
-    if (index == 0) {
-      await _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-      );
-      return;
-    }
-
-    final key = _categoryKeys[MockData.categories[index]];
-    final targetContext = key?.currentContext;
-    if (targetContext != null) {
-      await Scrollable.ensureVisible(
-        targetContext,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-        alignment: 0.05,
-      );
-    }
+    _scheduleSelectedCategoryReveal();
   }
 
-  void _updateSelectedCategoryFromScroll() {
-    if (!mounted) return;
+  List<FoodItem> _visibleProducts() {
+    if (_categories.isEmpty || selectedCategoryIndex == 0) return _products;
 
-    var closestIndex = 0;
-    var closestDistance = double.infinity;
-    final stickyHeaderBottom = MediaQuery.paddingOf(context).top + 112;
-
-    for (var index = 1; index < MockData.categories.length; index++) {
-      final key = _categoryKeys[MockData.categories[index]];
-      final sectionContext = key?.currentContext;
-      if (sectionContext == null) continue;
-
-      final renderObject = sectionContext.findRenderObject();
-      if (renderObject is! RenderBox || !renderObject.hasSize) continue;
-
-      final sectionTop = renderObject.localToGlobal(Offset.zero).dy;
-      final distance = (sectionTop - stickyHeaderBottom).abs();
-      if (sectionTop <= stickyHeaderBottom + 80 && distance < closestDistance) {
-        closestDistance = distance;
-        closestIndex = index;
-      }
-    }
-
-    if (closestIndex != selectedCategoryIndex) {
-      setState(() {
-        selectedCategoryIndex = closestIndex;
-      });
-    }
+    final category = _categories[selectedCategoryIndex];
+    if (category == 'All') return _products;
+    return _products.where((food) => food.category == category).toList();
   }
 
   Widget _buildCategoryChips() {
     return SizedBox(
-      height: 56,
-      child: Material(
-        color: Colors.transparent,
-        elevation: 0,
-        child: ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          scrollDirection: Axis.horizontal,
-          itemCount: MockData.categories.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 10),
-          itemBuilder: (context, index) {
-            final isSelected = selectedCategoryIndex == index;
+      height: 60,
+      child: ListView.separated(
+        controller: _categoryScrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = selectedCategoryIndex == index;
 
-            return GestureDetector(
-              onTap: () => _selectCategory(index),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFFE53935) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Text(
-                  MockData.categories[index],
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey[600],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
+          return ChoiceChip(
+            key: _chipKey(category),
+            label: Text(category),
+            selected: isSelected,
+            showCheckmark: false,
+            onSelected: (_) => _selectCategory(index),
+            backgroundColor: Colors.white,
+            selectedColor: const Color(0xFFD93B32),
+            side: BorderSide(
+              color: isSelected
+                  ? const Color(0xFFD93B32)
+                  : const Color(0xFFE4E7E3),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.white : const Color(0xFF4D554F),
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          );
+        },
       ),
-    );
-  }
-
-  Widget _buildFoodGrid(List<FoodItem> foods) {
-    if (foods.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(
-          child: Text(
-            'No food items in this category.',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ),
-      );
-    }
-
-    return GridView.builder(
-      padding: EdgeInsets.zero,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: foods.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.75,
-        crossAxisSpacing: 15,
-        mainAxisSpacing: 15,
-      ),
-      itemBuilder: (context, index) {
-        return FoodCard(
-          food: foods[index],
-          onAddTap: () => _addFoodToCart(foods[index]),
-        );
-      },
     );
   }
 
   void _addFoodToCart(FoodItem food) {
-    context.read<CartProvider>().addToCart(
-      food: food,
-      quantity: 1,
-      selectedSize: 0,
-      cheese: false,
-      bacon: false,
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProductDetailScreen(food: food)),
     );
-
-    final messenger = ScaffoldMessenger.of(context)..hideCurrentSnackBar();
-    final controller = messenger.showSnackBar(
-      SnackBar(
-        content: Text('${food.name} added to cart'),
-        duration: const Duration(milliseconds: 5000),
-        action: SnackBarAction(
-          label: 'VIEW CART',
-          textColor: Colors.white,
-          onPressed: () {
-            context.read<NavigationProvider>().setCurrentIndex(2);
-          },
-        ),
-      ),
-    );
-
-    Future.delayed(const Duration(milliseconds: 5000), controller.close);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          stops: [0.1, 0.9],
-          end: Alignment.bottomCenter,
-          colors: [
-            Color.fromARGB(255, 255, 255, 255),
-            Color.fromARGB(255, 225, 225, 225),
-          ],
-        ),
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        extendBody: true,
-        appBar: const FoodieAppBar(title: 'F o o d i e'),
-        body: NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
-            if (notification is ScrollUpdateNotification) {
-              _updateSelectedCategoryFromScroll();
-            }
-            return false;
-          },
-          child: CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Order your\nfavourite food!',
-                        style: TextStyle(
-                          color: Color.fromARGB(255, 49, 49, 49),
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+    final catalog = context.watch<CatalogProvider>();
+    final foods = _visibleProducts();
+    final selectedIndex = catalog.categories.isEmpty
+        ? 0
+        : selectedCategoryIndex.clamp(0, catalog.categories.length - 1);
+    final selectedCategory = catalog.categories.isEmpty
+        ? 'All dishes'
+        : catalog.categories[selectedIndex].categoryName;
 
-                      const SizedBox(height: 20),
-
-                      // Carousel
-                      Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: [
-                          CarouselSlider(
-                            items: [
-                              for (String item in _slider)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Image.asset(
-                                    item,
-                                    width: 350,
-                                    height: 230,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                            ],
-                            options: CarouselOptions(
-                              height: 180,
-                              autoPlay: true,
-                              autoPlayInterval: const Duration(seconds: 3),
-                              viewportFraction: 1.07,
-                              onPageChanged: (index, reason) {
-                                setState(() {
-                                  currentSlideIndex = index;
-                                });
-                              },
-                            ),
-                          ),
-
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (
-                                  int index = 0;
-                                  index < _slider.length;
-                                  index++
-                                )
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 500),
-                                    width: currentSlideIndex == index ? 16 : 6,
-                                    height: 6,
-                                    margin: EdgeInsets.only(
-                                      right: index == _slider.length - 1
-                                          ? 0
-                                          : 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: currentSlideIndex == index
-                                          ? const Color.fromARGB(
-                                              255,
-                                              239,
-                                              43,
-                                              1,
-                                            )
-                                          : Colors.grey.shade400,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _CategoryHeaderDelegate(child: _buildCategoryChips()),
-              ),
-              for (final category in MockData.categories.skip(1))
-                SliverToBoxAdapter(
-                  child: Padding(
-                    key: _categoryKeys[category],
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          category,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildFoodGrid(_foodItemsForCategory(category)),
-                        const SizedBox(height: 20),
-                      ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7F4),
+      extendBody: true,
+      appBar: const FoodieAppBar(title: 'F o o d i e'),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'What are you craving?',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      color: Color(0xFF242A25),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ),
-            ],
+                  const SizedBox(height: 3),
+                  const Text(
+                    'Fresh picks, ready when you are.',
+                    style: TextStyle(color: Color(0xFF727A73), fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  Stack(
+                    alignment: Alignment.bottomCenter,
+                    children: [
+                      CarouselSlider(
+                        items: [
+                          for (final item in _slider)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                item,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                        ],
+                        options: CarouselOptions(
+                          height: 158,
+                          autoPlay: true,
+                          autoPlayInterval: const Duration(seconds: 4),
+                          viewportFraction: 1,
+                          onPageChanged: (index, reason) {
+                            setState(() => currentSlideIndex = index);
+                          },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 9),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (var index = 0; index < _slider.length; index++)
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 220),
+                                width: currentSlideIndex == index ? 18 : 6,
+                                height: 6,
+                                margin: EdgeInsets.only(
+                                  right: index == _slider.length - 1 ? 0 : 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: currentSlideIndex == index
+                                      ? const Color(0xFFD93B32)
+                                      : Colors.white.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _CategoryHeaderDelegate(child: _buildCategoryChips()),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 19, 20, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                      selectedCategory == 'All'
+                          ? 'Popular picks'
+                          : selectedCategory,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        color: Color(0xFF242A25),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${foods.length} items',
+                    style: const TextStyle(
+                      color: Color(0xFF727A73),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_products.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: catalog.loading
+                    ? const CircularProgressIndicator(color: Color(0xFFD93B32))
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            catalog.error ?? 'No products are available.',
+                            style: const TextStyle(color: Color(0xFF727A73)),
+                          ),
+                          if (catalog.error != null)
+                            TextButton(
+                              onPressed: catalog.load,
+                              child: const Text('Retry'),
+                            ),
+                        ],
+                      ),
+              ),
+            )
+          else if (foods.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  'No items in this category yet.',
+                  style: TextStyle(color: Color(0xFF727A73)),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 2, 20, 120),
+              sliver: SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => FoodCard(
+                    food: foods[index],
+                    onAddTap: () => _addFoodToCart(foods[index]),
+                  ),
+                  childCount: foods.length,
+                ),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisExtent: 276,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -358,10 +323,10 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
 
   @override
-  double get minExtent => 56;
+  double get minExtent => 60;
 
   @override
-  double get maxExtent => 56;
+  double get maxExtent => 60;
 
   @override
   Widget build(
@@ -369,10 +334,7 @@ class _CategoryHeaderDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return ColoredBox(
-      color: overlapsContent ? Colors.white : Colors.transparent,
-      child: child,
-    );
+    return ColoredBox(color: const Color(0xFFF5F7F4), child: child);
   }
 
   @override

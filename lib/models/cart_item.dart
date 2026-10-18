@@ -1,40 +1,30 @@
 import '../models/food_item.dart';
+import 'product_option.dart';
 
 class CartItem {
   final FoodItem food;
   int quantity;
-  int selectedSize;
-  bool cheese;
-  bool bacon;
+  final List<ProductOption> selectedOptions;
 
   CartItem({
     required this.food,
     this.quantity = 1,
-    this.selectedSize = 0,
-    this.cheese = false,
-    this.bacon = false,
+    this.selectedOptions = const [],
   });
 
-  double get sizePrice {
-    return selectedSize == 1 ? 2.0 : 0.0;
-  }
-
-  double get extraPrice {
-    double price = 0;
-
-    if (cheese) {
-      price += 1.0;
+  ProductOption? get selectedSize {
+    for (final option in selectedOptions) {
+      if (option.type == 'SIZE') return option;
     }
-
-    if (bacon) {
-      price += 1.5;
-    }
-
-    return price;
+    return null;
   }
 
   double get unitPrice {
-    return food.price + sizePrice + extraPrice;
+    final basePrice = selectedSize?.price ?? food.price;
+    final addOnPrice = selectedOptions
+        .where((option) => option.type != 'SIZE')
+        .fold<double>(0, (sum, option) => sum + option.extraPrice);
+    return basePrice + addOnPrice;
   }
 
   double get totalPrice {

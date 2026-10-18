@@ -4,10 +4,12 @@ import 'package:pos_product/screens/home_screen.dart';
 
 class OrderSuccessScreen extends StatelessWidget {
   final double total;
+  final String orderId;
 
   const OrderSuccessScreen({
     super.key,
     required this.total,
+    this.orderId = '',
   });
 
   @override
@@ -103,8 +105,8 @@ class OrderSuccessScreen extends StatelessWidget {
 
                       const SizedBox(height: 5),
 
-                      const Text(
-                        '#ORD-00125',
+                      Text(
+                        orderId.isEmpty ? 'Order received' : '#$orderId',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,

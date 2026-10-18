@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
 import 'package:pos_product/screens/home_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/foodie_api.dart';
+import '../services/api_client.dart';
+import '../providers/favorite_provider.dart';
+import '../providers/catalog_provider.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,237 +22,59 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscurePassword = true;
 
+  bool _isLoading = false;
+
   final TextEditingController emailController = TextEditingController();
 
   final TextEditingController passwordController = TextEditingController();
 
-  // Login
   Future<void> signIn() async {
-    // Validate form
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (_isLoading) return;
 
-    final prefs = await SharedPreferences.getInstance();
+    if (!_formKey.currentState!.validate()) return;
 
-    // Get registered account
-    final savedEmail = prefs.getString('sv11-12.pos_mobile.email');
+    setState(() {
+      _isLoading = true;
+    });
 
-    final savedPassword = prefs.getString('sv11-12.pos_mobile.password');
-
-    // No account
-    if (savedEmail == null || savedPassword == null) {
+    try {
+      await FoodieApi.instance.login(
+        emailController.text.trim(),
+        passwordController.text,
+      );
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No account found. Please register first.'),
+      unawaited(context.read<CatalogProvider>().load());
+      unawaited(context.read<FavoriteProvider>().load());
+
+      // Navigate to HomeScreen
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            error is ApiException
+                ? error.message
+                : 'Unable to sign in. Check your connection and try again.',
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
-
-      return;
-    }
-
-    // Check credentials
-    if (emailController.text.trim() == savedEmail &&
-        passwordController.text == savedPassword) {
-      // Save login token
-      await prefs.setString(
-        'sv11-12.pos_mobile.token',
-        'local_logged_in_token',
-      );
-
-      if (!mounted) return;
-
-      // Show success dialog
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-
-        builder: (dialogContext) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
-            ),
-
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-
-                children: [
-                  // Success Animation
-                  SizedBox(
-                    height: 150,
-                    width: 150,
-
-                    child: Lottie.asset(
-                      'assets/lotties/success.json',
-                      repeat: false,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Title
-                  const Text(
-                    'Login Successful!',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Description
-                  const Text(
-                    'Welcome! You have successfully logged in.',
-                    textAlign: TextAlign.center,
-
-                    style: TextStyle(fontSize: 15, color: Colors.grey),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // Continue button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-
-                      onPressed: () {
-                        // Close dialog
-                        Navigator.pop(dialogContext);
-
-                        // Go Home
-                        Navigator.pushAndRemoveUntil(
-                          context,
-
-                          MaterialPageRoute(
-                            builder: (context) => const HomeScreen(),
-                          ),
-
-                          (route) => false,
-                        );
-                      },
-
-                      child: const Text(
-                        'Continue',
-
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    } else {
-      // Wrong email/password
-      if (!mounted) return;
-
-      await showDialog(
-        context: context,
-        barrierDismissible: true,
-
-        builder: (dialogContext) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(25),
-            ),
-
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-
-                children: [
-                  // Error Animation
-                  SizedBox(
-                    height: 120,
-                    width: 120,
-
-                    child: Lottie.asset(
-                      'assets/lotties/error_sign.json',
-                      repeat: false,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  const Text(
-                    'Login Failed',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  const Text(
-                    'The email or password you entered is incorrect. Please try again.',
-                    textAlign: TextAlign.center,
-
-                    style: TextStyle(fontSize: 15, color: Colors.grey),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-
-                      onPressed: () {
-                        Navigator.pop(dialogContext);
-                      },
-
-                      child: const Text(
-                        'Try Again',
-
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -356,33 +183,61 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ForgotPasswordScreen(
+                            initialEmail: emailController.text.trim(),
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Forgot password?',
+                        style: TextStyle(
+                          color: Color(0xFFF5233B),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
 
                   // Login
                   SizedBox(
                     width: double.infinity,
                     height: 40,
-
                     child: ElevatedButton(
-                      onPressed: signIn,
+                      onPressed: _isLoading ? null : signIn,
 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF5233B),
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFF5233B),
+                        disabledForegroundColor: Colors.white,
                         elevation: 0,
-
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),
 
-                      child: const Text(
-                        "LOGIN",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              "LOGIN",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
 
@@ -544,7 +399,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             // 3. Invisible spacer matching the icon width to keep text perfectly centered
-          const SizedBox(width: 24), 
+            const SizedBox(width: 24),
           ],
         ),
       ),
@@ -566,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       validator: validator,
-       autovalidateMode: AutovalidateMode.onUserInteractionIfError,
+      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
 
       style: const TextStyle(fontSize: 12),
 
@@ -575,7 +430,7 @@ class _LoginScreenState extends State<LoginScreen> {
         hintText: hintText,
         prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
 
-        labelStyle: TextStyle(fontSize:11,  color: Colors.grey),
+        labelStyle: TextStyle(fontSize: 11, color: Colors.grey),
         hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
 
         prefixIconConstraints: const BoxConstraints(

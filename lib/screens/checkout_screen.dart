@@ -5,10 +5,13 @@ import 'package:pos_product/screens/order_success_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../helpers/order_storage.dart';
-import '../helpers/promo_code.dart';
-import '../models/order.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
+import '../models/order.dart';
+import '../models/customer_reward.dart';
+import '../models/product_option.dart';
+import '../services/foodie_api.dart';
+import '../services/api_client.dart';
+import '../widgets/food_image.dart';
 
 const _brandColor = Color(0xFFF5233B);
 const _pageColor = Color(0xFFF7F7F9);
@@ -22,16 +25,16 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  final TextEditingController _promoController = TextEditingController();
   String orderType = 'Takeaway';
   String paymentMethod = 'Cash';
   String _deliveryAddress = '';
-  bool _promoApplied = false;
-  String? _promoMessage;
+  List<CustomerReward> _rewards = [];
+  bool _loadingRewards = true;
+  String? _rewardLoadError;
+  int? _selectedRewardId;
 
   @override
   void dispose() {
-    _promoController.dispose();
     super.dispose();
   }
 
@@ -39,22 +42,53 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     _loadDeliveryAddress();
+    _loadRewards();
+  }
+
+  Future<void> _loadRewards() async {
+    try {
+      final rewards = await FoodieApi.instance.rewards();
+      if (!mounted) return;
+      setState(() {
+        _rewards = rewards;
+        _loadingRewards = false;
+        _rewardLoadError = null;
+        if (!_rewards.any((reward) => reward.id == _selectedRewardId && reward.isAvailable)) {
+          _selectedRewardId = null;
+        }
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingRewards = false;
+        _rewardLoadError = error.toString();
+      });
+    }
+  }
+
+  CustomerReward? _eligibleReward(double subtotal) {
+    for (final reward in _rewards) {
+      if (reward.id == _selectedRewardId && reward.isAvailable &&
+          subtotal >= reward.minimumRedemptionSubtotal) return reward;
+    }
+    return null;
   }
 
   Future<void> _loadDeliveryAddress() async {
-    final prefs = await SharedPreferences.getInstance();
+    String address = '';
+    try {
+      final remote = await FoodieApi.instance.deliveryAddress();
+      address = [remote['address'], remote['city']]
+          .whereType<String>().map((value) => value.trim())
+          .where((value) => value.isNotEmpty).join(', ');
+    } catch (_) {
+      final prefs = await SharedPreferences.getInstance();
+      address = [prefs.getString('delivery.address'), prefs.getString('delivery.city')]
+          .whereType<String>().map((value) => value.trim())
+          .where((value) => value.isNotEmpty).join(', ');
+    }
     if (!mounted) return;
-    setState(() {
-      _deliveryAddress =
-          [
-                prefs.getString('delivery.address'),
-                prefs.getString('delivery.city'),
-              ]
-              .whereType<String>()
-              .map((value) => value.trim())
-              .where((value) => value.isNotEmpty)
-              .join(', ');
-    });
+    setState(() => _deliveryAddress = address);
   }
 
   Future<void> _openDeliveryAddress() async {
@@ -65,27 +99,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await _loadDeliveryAddress();
   }
 
-  void _applyPromoCode(double subtotal) {
-    final code = _promoController.text.trim().toUpperCase();
-    final discount = PromoCode.discountFor(code: code, subtotal: subtotal);
-    setState(() {
-      if (discount > 0) {
-        _promoApplied = true;
-        _promoMessage = '10% discount applied to your food subtotal.';
-      } else {
-        _promoApplied = false;
-        _promoMessage = code.isEmpty
-            ? 'Enter a promo code first.'
-            : 'That promo code is not valid.';
+  Future<String?> _cartItemMissingSize(CartProvider cart) async {
+    final optionsByProduct = <String, List<ProductOption>>{};
+    for (final item in cart.items) {
+      if (!optionsByProduct.containsKey(item.food.id)) {
+        optionsByProduct[item.food.id] =
+            await FoodieApi.instance.productOptions(item.food.id);
       }
-    });
+      final options = optionsByProduct[item.food.id]!;
+      final sizes = options.where((option) => option.type == 'SIZE').toList();
+      if (sizes.isEmpty) continue;
+
+      final selectedSizeIds = item.selectedOptions
+          .where((option) => option.type == 'SIZE')
+          .map((option) => option.id)
+          .toList();
+      if (selectedSizeIds.length != 1 ||
+          !sizes.any((option) => option.id == selectedSizeIds.single)) {
+        return item.food.name;
+      }
+    }
+    return null;
   }
 
-  Future<void> _placeOrder(
-    CartProvider cart,
-    double total,
-    double discount,
-  ) async {
+  Future<void> _placeOrder(CartProvider cart) async {
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -98,54 +135,60 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       await _openDeliveryAddress();
       return;
     }
-    final order = Order(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      total: total,
-      orderType: orderType,
-      paymentMethod: paymentMethod,
-      address: _deliveryAddress,
-      itemCount: cart.totalItems,
-      createdAt: DateTime.now(),
-      promoCode: _promoApplied ? PromoCode.foodie10 : '',
-      discount: discount,
-      items: cart.items
-          .map(
-            (item) => OrderItem(
-              name: item.food.name,
-              quantity: item.quantity,
-              size: item.selectedSize == 1 ? 'Large' : 'Regular',
-              addOns: [
-                if (item.cheese) 'Extra cheese',
-                if (item.bacon) 'Bacon',
-              ],
-              unitPrice: item.unitPrice,
+    try {
+      final missingSizeProduct = await _cartItemMissingSize(cart);
+      if (missingSizeProduct != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Choose exactly one size for $missingSizeProduct. Go back to your cart and tap Edit.',
             ),
-          )
-          .toList(),
-    );
-    await OrderStorage.addOrder(order);
-    if (!mounted) return;
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
-    cart.clearCart();
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => OrderSuccessScreen(total: total)),
-      (route) => false,
-    );
+    final request = {
+      'orderType': orderType,
+      'paymentMethod': paymentMethod,
+      'deliveryAddress': orderType == 'Delivery' ? _deliveryAddress : '',
+      if (_eligibleReward(cart.totalPrice) != null) 'rewardId': _selectedRewardId,
+      'items': cart.items.map((item) => {
+        'productId': int.tryParse(item.food.id) ?? item.food.id,
+        'quantity': item.quantity,
+        'optionIds': item.selectedOptions.map((option) => option.id).toList(),
+      }).toList(),
+    };
+      final response = await FoodieApi.instance.placeOrder(request);
+      if (response is! Map) throw const ApiException('The server returned an invalid order response.');
+      final order = Order.fromJson(Map<String, dynamic>.from(response));
+      final finalTotal = order.total;
+      if (!mounted) return;
+      cart.clearCart();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => OrderSuccessScreen(total: finalTotal, orderId: order.id)),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error is ApiException ? error.message : 'Unable to place order. Please try again.'),
+        backgroundColor: Colors.red,
+      ));
+    }
+    return;
   }
 
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final subtotal = cart.totalPrice;
-    final deliveryFee = orderType == 'Delivery' ? 2.00 : 0.00;
-    final discount = _promoApplied
-        ? PromoCode.discountFor(
-            code: _promoController.text,
-            subtotal: subtotal,
-          )
-        : 0.0;
-    final total = subtotal + deliveryFee - discount;
+    final reward = _eligibleReward(subtotal);
+    final discount = reward == null ? 0.0 : subtotal * reward.discountRate;
+    final total = subtotal - discount;
 
     return Scaffold(
       backgroundColor: _pageColor,
@@ -175,14 +218,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Expanded(
                 child: _orderTypeOption(
                   icon: Icons.restaurant_outlined,
-                  title: 'Dine in',
-                  value: 'Dine In',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _orderTypeOption(
-                  icon: Icons.shopping_bag_outlined,
                   title: 'Takeaway',
                   value: 'Takeaway',
                 ),
@@ -197,6 +232,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          _orderTypeOption(
+            icon: Icons.restaurant,
+            title: 'Dine In',
+            value: 'Dine In',
+          ),
           if (orderType == 'Delivery') ...[
             const SizedBox(height: 22),
             _sectionTitle('Delivery location', '02'),
@@ -209,27 +250,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             orderType == 'Delivery' ? '03' : '02',
           ),
           const SizedBox(height: 12),
-          _paymentOption(
-            icon: Icons.payments_outlined,
-            title: 'Cash',
-            subtitle: 'Pay when your order arrives',
-            value: 'Cash',
-          ),
-          const SizedBox(height: 10),
-          _paymentOption(
-            icon: Icons.credit_card_outlined,
-            title: 'Credit / debit card',
-            subtitle: 'Pay securely by card',
-            value: 'Card',
-          ),
+          _paymentOption(icon: Icons.payments_outlined, title: 'Cash', subtitle: 'Cash payment', value: 'Cash'),
+          const SizedBox(height: 8),
+          _paymentOption(icon: Icons.qr_code_2, title: 'QR Payment', subtitle: 'Pay by QR code', value: 'QR Payment'),
+          const SizedBox(height: 8),
+          _paymentOption(icon: Icons.credit_card_outlined, title: 'Card', subtitle: 'Credit or debit card', value: 'Card'),
           const SizedBox(height: 24),
-          _sectionTitle('Promo code', ' '),
+          _sectionTitle('Reward wallet', ' '),
           const SizedBox(height: 12),
-          _promoCodeEntry(subtotal),
+          _rewardSelector(subtotal),
           const SizedBox(height: 24),
           _sectionTitle('Order summary', ' '),
           const SizedBox(height: 12),
-          _orderSummary(cart, subtotal, deliveryFee, discount, total),
+          _orderSummary(cart, subtotal, discount, total),
         ],
       ),
       bottomNavigationBar: Container(
@@ -269,7 +302,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: () => _placeOrder(cart, total, discount),
+                  onPressed: () => _placeOrder(cart),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _brandColor,
                     foregroundColor: Colors.white,
@@ -496,95 +529,69 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _promoCodeEntry(double subtotal) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8E8EC)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _promoController,
-                  textCapitalization: TextCapitalization.characters,
-                  textInputAction: TextInputAction.done,
-                  onChanged: (_) {
-                    if (_promoApplied || _promoMessage != null) {
-                      setState(() {
-                        _promoApplied = false;
-                        _promoMessage = null;
-                      });
+  Widget _rewardSelector(double subtotal) {
+    if (_loadingRewards) {
+      return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+    }
+    if (_rewardLoadError != null) {
+      return _rewardPanel(
+        'Could not load rewards',
+        'Check your connection and try again.',
+        action: TextButton(onPressed: _loadRewards, child: const Text('Retry')),
+      );
+    }
+    final available = _rewards.where((reward) => reward.isAvailable).toList();
+    if (available.isEmpty) {
+      return _rewardPanel('No available rewards', 'Rewards earned from completed orders will appear here.');
+    }
+    return Column(
+      children: available.map((reward) {
+        final meetsMinimum = subtotal >= reward.minimumRedemptionSubtotal;
+        final selected = reward.id == _selectedRewardId;
+        final percent = (reward.discountRate * 100).round();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: selected ? _brandColor : const Color(0xFFE8E8EC), width: selected ? 1.5 : 1),
+          ),
+          child: RadioListTile<int>(
+            value: reward.id,
+            groupValue: _selectedRewardId,
+            activeColor: _brandColor,
+            onChanged: !meetsMinimum && !selected
+                ? null
+                : (id) {
+                    if (selected) {
+                      setState(() => _selectedRewardId = null);
+                    } else {
+                      setState(() => _selectedRewardId = id);
                     }
                   },
-                  onSubmitted: (_) => _applyPromoCode(subtotal),
-                  decoration: InputDecoration(
-                    hintText: 'Enter promo code',
-                    prefixIcon: const Icon(Icons.local_offer_outlined),
-                    isDense: true,
-                    filled: true,
-                    fillColor: const Color(0xFFF8F8FA),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => _applyPromoCode(subtotal),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _brandColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Apply'),
-                ),
-              ),
-            ],
+            title: Text(reward.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            subtitle: Text(meetsMinimum
+                ? '$percent% off this food subtotal'
+                : 'Order at least \$${reward.minimumRedemptionSubtotal.toStringAsFixed(2)} to use'),
           ),
-          if (_promoMessage != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _promoMessage!,
-              style: TextStyle(
-                color: _promoApplied
-                    ? const Color(0xFF217A45)
-                    : _brandColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Try ${PromoCode.foodie10} for 10% off your food subtotal.',
-              style: TextStyle(color: _mutedColor, fontSize: 12),
-            ),
-          ],
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _orderSummary(
-    CartProvider cart,
-    double subtotal,
-    double deliveryFee,
-    double discount,
-    double total,
-  ) {
+  Widget _rewardPanel(String title, String detail, {Widget? action}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8E8EC)),
+      ),
+      child: Row(children: [const Icon(Icons.card_giftcard_outlined, color: _brandColor), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w600)), Text(detail, style: const TextStyle(color: _mutedColor, fontSize: 12))])), if (action != null) action]),
+    );
+  }
+
+  Widget _orderSummary(CartProvider cart, double subtotal, double discount, double total) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -606,10 +613,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       height: 54,
                       color: _pageColor,
                       padding: const EdgeInsets.all(5),
-                      child: Image.asset(
-                        item.food.imageUrl,
-                        fit: BoxFit.contain,
-                      ),
+                      child: foodImage(item.food.imageUrl),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -628,7 +632,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Qty ${item.quantity}',
+                          [
+                            'Qty ${item.quantity}',
+                            ...item.selectedOptions.map((option) => option.name),
+                          ].join(' · '),
                           style: const TextStyle(
                             color: _mutedColor,
                             fontSize: 12,
@@ -650,12 +657,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ),
           const Divider(height: 20),
-          _priceRow('Subtotal', subtotal),
+          _priceRow('Food subtotal (estimate)', subtotal),
           const SizedBox(height: 10),
-          _priceRow('Delivery fee', deliveryFee),
+          if (orderType == 'Delivery')
+            _infoPriceRow('Delivery fee', 'Calculated by server')
+          else
+            _infoPriceRow('Service fee', 'None'),
           if (discount > 0) ...[
             const SizedBox(height: 10),
-            _priceRow('FOODIE10 discount', -discount),
+            _priceRow('Reward estimate', -discount),
           ],
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -665,7 +675,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Total',
+                'Estimated total',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
               ),
               Text(
@@ -677,6 +687,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Final prices, delivery fee, and reward discount are confirmed by the server when you place the order.',
+            style: TextStyle(color: _mutedColor, fontSize: 11),
           ),
         ],
       ),
@@ -698,4 +713,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ],
     );
   }
+
+  Widget _infoPriceRow(String title, String value) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(title, style: const TextStyle(color: _mutedColor, fontSize: 13)),
+      Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+    ],
+  );
 }

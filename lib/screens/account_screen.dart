@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:pos_product/helpers/order_storage.dart';
 import 'package:pos_product/models/order.dart';
 import 'package:pos_product/providers/navigation_provider.dart';
 import 'package:pos_product/screens/delivery_address_screen.dart';
 import 'package:pos_product/screens/favorite_screen.dart';
 import 'package:pos_product/screens/login_screen.dart';
+import 'package:pos_product/screens/rewards_screen.dart';
+import 'package:pos_product/screens/change_password_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/favorite_provider.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
+import '../services/foodie_api.dart';
+import '../services/api_client.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
@@ -22,7 +24,11 @@ class _AccountScreenState extends State<AccountScreen> {
   String _name = 'Customer';
   String _email = '';
   int? _lastNavigationIndex;
-  Future<List<Order>> _ordersFuture = OrderStorage.loadOrders();
+  Future<List<Order>> _ordersFuture = _loadRemoteOrders();
+
+  static Future<List<Order>> _loadRemoteOrders() async =>
+      (await FoodieApi.instance.orders()).whereType<Map>()
+          .map((row) => Order.fromJson(Map<String, dynamic>.from(row))).toList();
 
   @override
   void initState() {
@@ -36,28 +42,26 @@ class _AccountScreenState extends State<AccountScreen> {
     final index = context.watch<NavigationProvider>().currentIndex;
     if (index != _lastNavigationIndex) {
       _lastNavigationIndex = index;
-      if (index == 4) _ordersFuture = OrderStorage.loadOrders();
+      if (index == 4) _ordersFuture = _loadRemoteOrders();
     }
   }
 
   Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _name = prefs.getString('sv11-12.pos_mobile.name') ?? 'Customer';
-      _email = prefs.getString('sv11-12.pos_mobile.email') ?? '';
-    });
+    try {
+      final profile = await FoodieApi.instance.currentUser();
+      if (!mounted) return;
+      setState(() {
+        _name = (profile['username'] ?? profile['name'] ?? 'Customer').toString();
+        _email = (profile['email'] ?? '').toString();
+      });
+    } catch (_) {}
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('sv11-12.pos_mobile.token');
+    try { await FoodieApi.instance.logout(); } catch (_) { await ApiClient.instance.clearTokens(); }
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    Navigator.pushAndRemoveUntil(context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
   @override
@@ -125,12 +129,14 @@ class _AccountScreenState extends State<AccountScreen> {
           const SizedBox(height: 20),
           Card(
             child: ListTile(
-              leading: const Icon(Icons.receipt_long_outlined),
-              title: const Text('Order history'),
-              subtitle: const Text('View your orders and their status'),
+              leading: const Icon(Icons.card_giftcard_outlined, color: Color(0xFFF5233B)),
+              title: const Text('Reward wallet'),
+              subtitle: const Text('View available rewards and history'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () =>
-                  context.read<NavigationProvider>().setCurrentIndex(3),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RewardsScreen()),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -168,6 +174,21 @@ class _AccountScreenState extends State<AccountScreen> {
                 if (!mounted) return;
                 setState(() {});
               },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.lock_reset),
+              title: const Text('Reset password'),
+              subtitle: const Text('Change your account password'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ChangePasswordScreen(),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl_phone_field/phone_number.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl_phone_field/phone_number.dart';
+import '../services/foodie_api.dart';
+import '../services/api_client.dart';
 import 'login_screen.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 
@@ -29,64 +31,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
 
-  // Register user locally
   Future<void> register() async {
-    // Validate form
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-
-    // Check whether an account already exists
-    final existingEmail = prefs.getString('sv11-12.pos_mobile.email');
-
-    if (existingEmail != null) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An account has already been registered.'),
-          backgroundColor: Colors.red,
-        ),
+    if (!_formKey.currentState!.validate()) return;
+    try {
+      await FoodieApi.instance.register(
+        username: nameController.text.trim(),
+        email: emailController.text.trim(),
+        password: passwordController.text,
+        confirm: confirmPasswordController.text,
       );
-
-      return;
+      if (completePhoneNumber.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('delivery.phone', completePhoneNumber);
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registration successful. Please login.'), backgroundColor: Colors.green),
+      );
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error is ApiException ? error.message : 'Unable to register. Check your connection and try again.'),
+        backgroundColor: Colors.red,
+      ));
     }
-
-    // Save user information
-    await prefs.setString(
-      'sv11-12.pos_mobile.name',
-      nameController.text.trim(),
-    );
-
-    await prefs.setString('sv11-12.pos_mobile.phone', completePhoneNumber);
-
-    await prefs.setString(
-      'sv11-12.pos_mobile.email',
-      emailController.text.trim(),
-    );
-
-    await prefs.setString(
-      'sv11-12.pos_mobile.password',
-      passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    // Registration successful
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Registration successful. Please login.'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    // Go to Login
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
   }
 
   @override

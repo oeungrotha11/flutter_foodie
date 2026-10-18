@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:pos_product/helpers/mock_data.dart';
-import 'package:pos_product/providers/cart_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/favorite_provider.dart';
+import '../providers/catalog_provider.dart';
 import '../widgets/food_card.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
+import 'product_detail.dart';
 
 class FavoriteScreen extends StatelessWidget {
   const FavoriteScreen({super.key});
@@ -13,13 +13,18 @@ class FavoriteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final favorites = context.watch<FavoriteProvider>();
-    final foodItems = MockData.foodItems
+    final foodItems = context.watch<CatalogProvider>().products
         .where((food) => favorites.isFavorite(food.id))
         .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
-      appBar: const FoodieAppBar(title: 'Favorites'),
+      appBar: const FoodieAppBar(
+        title: 'Favorites',
+        showBackButton: true,
+        showSearchButton: false,
+        showCartButton: false,
+      ),
       body: foodItems.isEmpty
           ? const Center(
               child: Column(
@@ -45,7 +50,7 @@ class FavoriteScreen extends StatelessWidget {
               itemCount: foodItems.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.75,
+                mainAxisExtent: 276,
                 crossAxisSpacing: 15,
                 mainAxisSpacing: 15,
               ),
@@ -53,18 +58,12 @@ class FavoriteScreen extends StatelessWidget {
                 final food = foodItems[index];
                 return FoodCard(
                   food: food,
-                  onAddTap: () {
-                    context.read<CartProvider>().addToCart(
-                      food: food,
-                      quantity: 1,
-                      selectedSize: 0,
-                      cheese: false,
-                      bacon: false,
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${food.name} added to cart')),
-                    );
-                  },
+                  onAddTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(food: food),
+                    ),
+                  ),
                 );
               },
             ),

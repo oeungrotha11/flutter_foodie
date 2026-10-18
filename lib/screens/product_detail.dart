@@ -3,11 +3,16 @@ import 'package:pos_product/models/food_item.dart';
 import 'package:pos_product/providers/cart_provider.dart';
 import 'package:pos_product/providers/navigation_provider.dart';
 import 'package:provider/provider.dart';
+import '../widgets/food_image.dart';
+import '../models/product_option.dart';
+import '../models/cart_item.dart';
+import '../services/foodie_api.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final FoodItem food;
+  final CartItem? editingItem;
 
-  const ProductDetailScreen({super.key, required this.food});
+  const ProductDetailScreen({super.key, required this.food, this.editingItem});
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -15,32 +20,78 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int quantity = 1;
-  int selectedSize = 0;
+  List<ProductOption> _options = [];
+  final Set<int> _selectedOptionIds = {};
+  bool _loadingOptions = true;
+  String? _optionsError;
 
-  bool cheese = false;
-  bool bacon = false;
+  List<ProductOption> get _selectedOptions =>
+      _options.where((option) => _selectedOptionIds.contains(option.id)).toList();
 
-  bool get supportsSize =>
-      widget.food.category == 'Pizza' || widget.food.category == 'Burger';
-
-  bool get supportsExtras => widget.food.category == 'Burger';
-
-  double get extraPrice {
-    if (!supportsExtras) {
-      return 0;
+  int? get _selectedSizeOptionId {
+    for (final option in _options) {
+      if (option.type == 'SIZE' && _selectedOptionIds.contains(option.id)) {
+        return option.id;
+      }
     }
+    return null;
+  }
 
-    double price = 0;
+  bool get _requiresSize => _options.any((option) => option.type == 'SIZE');
 
-    if (cheese) {
-      price += 1.0;
+  @override
+  void initState() {
+    super.initState();
+    quantity = widget.editingItem?.quantity ?? 1;
+    _loadOptions();
+  }
+
+  Future<void> _loadOptions() async {
+    setState(() { _loadingOptions = true; _optionsError = null; });
+    try {
+      final options = await FoodieApi.instance.productOptions(widget.food.id);
+      if (!mounted) return;
+      final previousSelections = widget.editingItem?.selectedOptions ?? const [];
+      final matchedSelections = options
+          .where((option) => previousSelections.any((selected) => selected.id == option.id))
+          .toList();
+      ProductOption? previousSize;
+      for (final option in matchedSelections) {
+        if (option.type == 'SIZE') previousSize = option;
+      }
+      final previousSizeId = previousSize?.id;
+      setState(() {
+        _options = options;
+        _selectedOptionIds
+          ..clear()
+          ..addAll(
+            matchedSelections
+                .where((option) => option.type != 'SIZE')
+                .map((option) => option.id),
+          );
+        if (previousSizeId != null) _selectedOptionIds.add(previousSizeId);
+        _loadingOptions = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() { _optionsError = error.toString(); _loadingOptions = false; });
     }
+  }
 
-    if (bacon) {
-      price += 1.5;
-    }
+  void _toggleOption(ProductOption option, bool selected) {
+    setState(() {
+      if (selected) _selectedOptionIds.add(option.id);
+      else _selectedOptionIds.remove(option.id);
+    });
+  }
 
-    return price;
+  void _selectSize(int? optionId) {
+    if (optionId == null) return;
+    setState(() {
+      _selectedOptionIds.removeWhere((id) =>
+          _options.any((option) => option.id == id && option.type == 'SIZE'));
+      _selectedOptionIds.add(optionId);
+    });
   }
 
   void _openCart() {
@@ -48,45 +99,46 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     Navigator.pop(context);
   }
 
-  double get sizePrice {
-    if (!supportsSize) {
-      return 0;
+  void _submitSelection() {
+    final cart = Provider.of<CartProvider>(context, listen: false);
+    final editingItem = widget.editingItem;
+    if (editingItem != null) {
+      cart.updateItem(
+        item: editingItem,
+        quantity: quantity,
+        selectedOptions: _selectedOptions,
+      );
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${widget.food.name} updated in cart')),
+      );
+      return;
     }
 
-    if (selectedSize == 1) {
-      return 2.0;
-    }
-
-    return 0;
+    cart.addToCart(
+      food: widget.food,
+      quantity: quantity,
+      selectedOptions: _selectedOptions,
+    );
+    _showAddedToCartBottomSheet(context);
   }
 
   double get totalPrice {
-    return (widget.food.price + sizePrice + extraPrice) * quantity;
+    ProductOption? size;
+    for (final option in _selectedOptions) {
+      if (option.type == 'SIZE') size = option;
+    }
+    final addOnPrice = _selectedOptions
+        .where((option) => option.type != 'SIZE')
+        .fold<double>(0, (sum, option) => sum + option.extraPrice);
+    return ((size?.price ?? widget.food.price) + addOnPrice) * quantity;
   }
 
   void _showAddedToCartBottomSheet(BuildContext context) {
-    // Build selected options
-    final List<String> selectedOptions = [];
-
-    if (supportsSize) {
-      if (selectedSize == 1) {
-        selectedOptions.add('Large');
-      } else {
-        selectedOptions.add('Regular');
-      }
-    }
-
-    if (supportsExtras) {
-      if (cheese) {
-        selectedOptions.add('Extra Cheese');
-      }
-      if (bacon) {
-        selectedOptions.add('Extra Bacon');
-      }
-    }
+    final selectedOptions = _selectedOptions.map((option) => option.name).toList();
 
     // Price for ONE item
-    final double unitPrice = widget.food.price + sizePrice + extraPrice;
+    final double unitPrice = totalPrice / quantity;
 
     // Price for all quantities
     final double finalTotal = unitPrice * quantity;
@@ -178,10 +230,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
 
-                      child: Image.asset(
-                        widget.food.imageUrl,
-                        fit: BoxFit.contain,
-                      ),
+                      child: foodImage(widget.food.imageUrl),
                     ),
 
                     const SizedBox(width: 14),
@@ -355,10 +404,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(30),
 
-                      child: Image.asset(
-                        widget.food.imageUrl,
-                        fit: BoxFit.contain,
-                      ),
+                      child: foodImage(widget.food.imageUrl),
                     ),
                   ),
 
@@ -552,75 +598,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                       const SizedBox(height: 25),
 
-                      if (supportsSize) ...[
-                        // =====================================
-                        // SIZE
-                        // =====================================
-                        const Text(
-                          'Size',
-
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      _buildOptionControls(),
+                      if (!_loadingOptions && _requiresSize && _selectedSizeOptionId == null)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text('Choose a size to continue.', style: TextStyle(color: Color(0xFFF5233B), fontSize: 12)),
                         ),
-
-                        const SizedBox(height: 12),
-
-                        Row(
-                          children: [
-                            _sizeButton(title: 'Regular', index: 0),
-
-                            const SizedBox(width: 10),
-
-                            _sizeButton(title: 'Large +\$2', index: 1),
-                          ],
-                        ),
-
-                        const SizedBox(height: 25),
-                      ],
-
-                      if (supportsExtras) ...[
-                        // =====================================
-                        // EXTRAS
-                        // =====================================
-                        const Text(
-                          'Extras',
-
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        _extraItem(
-                          title: 'Extra Cheese',
-                          price: '+\$1.00',
-                          value: cheese,
-
-                          onChanged: (value) {
-                            setState(() {
-                              cheese = value;
-                            });
-                          },
-                        ),
-
-                        _extraItem(
-                          title: 'Extra Bacon',
-                          price: '+\$1.50',
-                          value: bacon,
-
-                          onChanged: (value) {
-                            setState(() {
-                              bacon = value;
-                            });
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-                      ],
+                      const SizedBox(height: 20),
 
                       // =====================================
                       // QUANTITY
@@ -758,21 +742,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 height: 50,
 
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    Provider.of<CartProvider>(context, listen: false).addToCart(
-                      food: widget.food,
-                      quantity: quantity,
-                      selectedSize: selectedSize,
-                      cheese: cheese,
-                      bacon: bacon,
-                    );
-
-                    _showAddedToCartBottomSheet(context);
-                  },
+                  onPressed: _loadingOptions || _optionsError != null || (_requiresSize && _selectedSizeOptionId == null)
+                      ? null
+                      : _submitSelection,
 
                   icon: const Icon(Icons.shopping_cart_outlined, size: 18),
 
-                  label: const Text('ADD TO CART'),
+                  label: Text(widget.editingItem == null ? 'ADD TO CART' : 'UPDATE CART'),
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFF5233B),
@@ -817,76 +793,60 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  // =====================================
-  // SIZE BUTTON
-  // =====================================
-  Widget _sizeButton({required String title, required int index}) {
-    final bool selected = selectedSize == index;
+  Widget _buildOptionControls() {
+    if (_loadingOptions) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_optionsError != null) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(_optionsError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+        TextButton(onPressed: _loadOptions, child: const Text('Retry loading options')),
+      ]);
+    }
+    if (_options.isEmpty) return const SizedBox.shrink();
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedSize = index;
-        });
-      },
-
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFEEF0) : Colors.white,
-
-          borderRadius: BorderRadius.circular(10),
-
-          border: Border.all(
-            color: selected ? const Color(0xFFF5233B) : Colors.grey.shade300,
+    final sizes = _options.where((option) => option.type == 'SIZE').toList();
+    final extras = _options.where((option) => option.type == 'ADD_ON').toList();
+    final other = _options.where((option) => option.type != 'SIZE' && option.type != 'ADD_ON').toList();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (sizes.isNotEmpty) ...[
+        const Text('Size', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        RadioGroup<int>(
+          groupValue: _selectedSizeOptionId,
+          onChanged: _selectSize,
+          child: Column(
+            children: sizes.map((option) => RadioListTile<int>(
+              value: option.id,
+              selected: _selectedOptionIds.contains(option.id),
+              activeColor: const Color(0xFFF5233B),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(option.name),
+              subtitle: Text('\$${(option.price ?? widget.food.price).toStringAsFixed(2)}'),
+            )).toList(),
           ),
         ),
-
-        child: Text(
-          title,
-
-          style: TextStyle(
-            fontSize: 12,
-
-            fontWeight: FontWeight.w600,
-
-            color: selected ? const Color(0xFFF5233B) : Colors.black87,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // =====================================
-  // EXTRA ITEM
-  // =====================================
-  Widget _extraItem({
-    required String title,
-    required String price,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Row(
-      children: [
-        Checkbox(
-          value: value,
-
-          activeColor: const Color(0xFFF5233B),
-
-          onChanged: (value) {
-            onChanged(value ?? false);
-          },
-        ),
-
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 13))),
-
-        Text(
-          price,
-
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
+        const SizedBox(height: 18),
       ],
-    );
+      if (extras.isNotEmpty || other.isNotEmpty) ...[
+        const Text('Options', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        ...[...extras, ...other].map((option) => CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          controlAffinity: ListTileControlAffinity.leading,
+          activeColor: const Color(0xFFF5233B),
+          value: _selectedOptionIds.contains(option.id),
+          title: Text(option.name),
+          subtitle: Text(option.extraPrice == 0 ? 'Included' : '+\$${option.extraPrice.toStringAsFixed(2)}'),
+          onChanged: (selected) => _toggleOption(option, selected ?? false),
+        )),
+      ],
+    ]);
   }
 }
