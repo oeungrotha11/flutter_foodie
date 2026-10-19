@@ -142,14 +142,17 @@ class _ShopScreenState extends State<ShopScreen> {
           return const SizedBox.shrink();
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var index = 0; index < rules.length; index++) ...[
-              if (index > 0) const SizedBox(height: 12),
-              _buildSingleShopRewardCard(rules[index]),
-            ],
-          ],
+        return SizedBox(
+          height: 154,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: rules.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (context, index) => SizedBox(
+              width: 300,
+              child: _buildSingleShopRewardCard(rules[index]),
+            ),
+          ),
         );
       },
     );
@@ -172,8 +175,8 @@ class _ShopScreenState extends State<ShopScreen> {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
@@ -181,26 +184,31 @@ class _ShopScreenState extends State<ShopScreen> {
             child: const Icon(
               Icons.card_giftcard,
               color: Color(0xFFFFD782),
-              size: 27,
+              size: 25,
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Row(
                   children: [
-                    const Text(
-                      'SHOP REWARD',
-                      style: TextStyle(
-                        color: Color(0xFFFFD782),
-                        fontSize: 10,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w700,
+                    const Expanded(
+                      child: Text(
+                        'SHOP REWARD',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFFFFD782),
+                          fontSize: 10,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 6),
                     Text(
                       percent.toString() + '% OFF',
                       style: const TextStyle(
@@ -211,7 +219,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 6),
                 Text(
                   rule.name,
                   maxLines: 1,
@@ -222,38 +230,23 @@ class _ShopScreenState extends State<ShopScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Text(
                   'Earn after spending ' + r'$' +
                       rule.minimumQualifyingSubtotal.toStringAsFixed(2) + '+',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
-                  'Redeem on ' + r'$' +
+                  'Redeem at ' + r'$' +
                       rule.minimumRedemptionSubtotal.toStringAsFixed(2) +
-                      '+ orders · Valid ' + rule.validityDays.toString() + ' days',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                  ),
+                      '+ · ' + rule.validityDays.toString() + ' days',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
-                if (rule.description != null &&
-                    rule.description!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    rule.description!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
