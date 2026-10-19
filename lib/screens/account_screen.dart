@@ -23,12 +23,18 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   String _name = 'Customer';
   String _email = '';
+
+  String _address = '';
+  String _city = '';
+  String _phone = '';
   int? _lastNavigationIndex;
   Future<List<Order>> _ordersFuture = _loadRemoteOrders();
 
   static Future<List<Order>> _loadRemoteOrders() async =>
-      (await FoodieApi.instance.orders()).whereType<Map>()
-          .map((row) => Order.fromJson(Map<String, dynamic>.from(row))).toList();
+      (await FoodieApi.instance.orders())
+          .whereType<Map>()
+          .map((row) => Order.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
 
   @override
   void initState() {
@@ -49,19 +55,133 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _loadProfile() async {
     try {
       final profile = await FoodieApi.instance.currentUser();
+      Map<String, dynamic> deliveryAddress = {};
+      try {
+        deliveryAddress = await FoodieApi.instance.deliveryAddress();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
-        _name = (profile['username'] ?? profile['name'] ?? 'Customer').toString();
+        _name = (profile['username'] ?? profile['name'] ?? 'Customer')
+            .toString();
         _email = (profile['email'] ?? '').toString();
+        _address = (profile['address'] ?? deliveryAddress['address'] ?? '')
+            .toString();
+        _city = (profile['city'] ?? deliveryAddress['city'] ?? '').toString();
+        _phone = (profile['phone'] ?? deliveryAddress['phone'] ?? '').toString();
       });
     } catch (_) {}
   }
 
+  Future<void> _editProfile() async {
+    final changes = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _EditProfileDialog(
+        username: _name,
+        address: _address,
+        city: _city,
+        phone: _phone,
+        email: _email,
+      ),
+    );
+    if (changes == null || !mounted) return;
+
+    try {
+      final updated = await FoodieApi.instance.updateCurrentUser(
+        username: changes['username']!,
+        address: changes['address']!,
+        city: changes['city']!,
+        phone: changes['phone']!,
+        email: changes['email']!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _name = (updated['username'] ?? updated['name'] ?? changes['username'])
+            .toString();
+        _email = (updated['email'] ?? changes['email']).toString();
+        _address = (updated['address'] ?? changes['address']).toString();
+        _city = (updated['city'] ?? changes['city']).toString();
+        _phone = (updated['phone'] ?? changes['phone']).toString();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is ApiException
+                ? error.message
+                : 'Could not update your profile.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.logout, color: Color(0xFFF5233B)),
+              SizedBox(width: 10),
+              Text('Log out?'),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF5233B),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text(
+                'Log out',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout == true) {
+      await _logout();
+    }
+  }
+
   Future<void> _logout() async {
-    try { await FoodieApi.instance.logout(); } catch (_) { await ApiClient.instance.clearTokens(); }
+    try {
+      await FoodieApi.instance.logout();
+    } catch (_) {
+      await ApiClient.instance.clearTokens();
+    }
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
   }
 
   @override
@@ -71,33 +191,87 @@ class _AccountScreenState extends State<AccountScreen> {
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: const FoodieAppBar(title: 'Account'),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         children: [
-          CircleAvatar(
-            radius: 42,
-            backgroundColor: const Color(0xFFFFEEF0),
-            child: Text(
-              _name.isEmpty ? 'C' : _name[0].toUpperCase(),
-              style: const TextStyle(
-                color: Color(0xFFF5233B),
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-              ),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEDEDF0)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: const Color(0xFFFFEEF0),
+                  child: Text(
+                    _name.isEmpty ? 'C' : _name[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Color(0xFFF5233B),
+                      fontSize: 23,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF24252B),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        _email.isEmpty ? 'Manage your account' : _email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF777982),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: _editProfile,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFF5233B),
+                    backgroundColor: const Color(0xFFFFEEF0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    minimumSize: const Size(0, 38),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Edit',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Your activity',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF24252B),
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            _name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          if (_email.isNotEmpty)
-            Text(
-              _email,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.grey),
-            ),
-          const SizedBox(height: 28),
           FutureBuilder<List<Order>>(
             future: _ordersFuture,
             builder: (context, snapshot) {
@@ -126,81 +300,169 @@ class _AccountScreenState extends State<AccountScreen> {
               );
             },
           ),
-          const SizedBox(height: 20),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.card_giftcard_outlined, color: Color(0xFFF5233B)),
-              title: const Text('Reward wallet'),
-              subtitle: const Text('View available rewards and history'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const RewardsScreen()),
-              ),
+          const SizedBox(height: 26),
+          const Text(
+            'Account settings',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF24252B),
             ),
           ),
           const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: const Icon(
-                Icons.favorite_border,
-                color: Color(0xFFF5233B),
-              ),
-              title: const Text('Favorite items'),
-              subtitle: Text('$favoriteCount saved item(s)'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FavoriteScreen()),
-                );
-              },
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFEDEDF0)),
             ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.location_on_outlined),
-              title: const Text('Delivery Address'),
-              subtitle: const Text('Add or update your delivery address'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const DeliveryAddressScreen(),
+            child: Column(
+              children: [
+                _accountOption(
+                  icon: Icons.card_giftcard_outlined,
+                  title: 'Reward wallet',
+                  subtitle: 'View rewards and history',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RewardsScreen()),
                   ),
-                );
-                if (!mounted) return;
-                setState(() {});
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.lock_reset),
-              title: const Text('Reset password'),
-              subtitle: const Text('Change your account password'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ChangePasswordScreen(),
                 ),
-              ),
+                _accountOption(
+                  icon: Icons.favorite_border,
+                  title: 'Favorite items',
+                  subtitle: '$favoriteCount saved item(s)',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FavoriteScreen()),
+                  ),
+                ),
+                _accountOption(
+                  icon: Icons.location_on_outlined,
+                  title: 'Delivery address',
+                  subtitle: 'Add or update your address',
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DeliveryAddressScreen(),
+                      ),
+                    );
+                    if (!mounted) return;
+                    setState(() {});
+                  },
+                ),
+                _accountOption(
+                  icon: Icons.lock_reset,
+                  title: 'Reset password',
+                  subtitle: 'Change your account password',
+                  showDivider: false,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ChangePasswordScreen(),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.logout, color: Color(0xFFF5233B)),
-              title: const Text('Log out'),
-              onTap: _logout,
+          const SizedBox(height: 14),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFF4D9DC)),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEEF0),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.logout,
+                    color: Color(0xFFF5233B),
+                    size: 20,
+                  ),
+                ),
+                title: const Text(
+                  'Log out',
+                  style: TextStyle(
+                    color: Color(0xFFF5233B),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: Color(0xFF9A9BA2),
+                ),
+                onTap: _confirmLogout,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _accountOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool showDivider = true,
+  }) {
+    return Column(
+      children: [
+        Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 3,
+            ),
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEEF0),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: const Color(0xFFF5233B), size: 20),
+            ),
+            title: Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF292A30),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              subtitle,
+              style: const TextStyle(color: Color(0xFF777982), fontSize: 11),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: Color(0xFF9A9BA2),
+            ),
+            onTap: onTap,
+          ),
+        ),
+        if (showDivider)
+          const Divider(
+            height: 1,
+            indent: 68,
+            endIndent: 14,
+            color: Color(0xFFF0F0F2),
+          ),
+      ],
     );
   }
 
@@ -242,6 +504,164 @@ class _AccountScreenState extends State<AccountScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _EditProfileDialog extends StatefulWidget {
+  const _EditProfileDialog({
+    required this.username,
+    required this.address,
+    required this.city,
+    required this.phone,
+    required this.email,
+  });
+
+  final String username;
+  final String address;
+  final String city;
+  final String phone;
+  final String email;
+
+  @override
+  State<_EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<_EditProfileDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _usernameController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _cityController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _emailController;
+
+  @override
+  void initState() {
+    super.initState();
+    _usernameController = TextEditingController(text: widget.username);
+    _addressController = TextEditingController(text: widget.address);
+    _cityController = TextEditingController(text: widget.city);
+    _phoneController = TextEditingController(text: widget.phone);
+    _emailController = TextEditingController(text: widget.email);
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _addressController.dispose();
+    _cityController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop({
+      'username': _usernameController.text.trim(),
+      'address': _addressController.text.trim(),
+      'city': _cityController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'email': _emailController.text.trim(),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('Edit profile'),
+      content: Form(
+        key: _formKey,
+        child: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _usernameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Enter your name'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                validator: (value) {
+                  final email = value?.trim() ?? '';
+                  if (email.isEmpty) return 'Enter your email';
+                  if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                      .hasMatch(email)) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _addressController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Address',
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Enter your address'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _cityController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'City',
+                  prefixIcon: Icon(Icons.location_city_outlined),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Enter your city'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Enter your phone number'
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFF5233B),
+            foregroundColor: Colors.white,
+          ),
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

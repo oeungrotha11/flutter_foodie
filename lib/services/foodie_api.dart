@@ -100,6 +100,34 @@ class FoodieApi {
     throw const ApiException('The server returned an invalid profile.');
   }
 
+  Future<Map<String, dynamic>> updateCurrentUser({
+    required String username,
+    required String address,
+    required String city,
+    required String phone,
+    required String email,
+  }) async {
+    final data = await _api.put(
+      '/api/v1/user',
+      auth: true,
+      body: {
+        'username': username,
+        'address': address,
+        'city': city,
+        'phone': phone,
+        'email': email,
+      },
+    );
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return {
+      'username': username,
+      'address': address,
+      'city': city,
+      'phone': phone,
+      'email': email,
+    };
+  }
+
   Future<List<FoodItem>> products({String? search, String? category}) async {
     final query = <String, String>{
       'page': '1',
