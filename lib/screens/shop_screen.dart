@@ -141,118 +141,124 @@ class _ShopScreenState extends State<ShopScreen> {
         if (rules == null || rules.isEmpty) {
           return const SizedBox.shrink();
         }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: rules.map(_buildSingleShopRewardCard).toList(),
+          children: [
+            for (var index = 0; index < rules.length; index++) ...[
+              if (index > 0) const SizedBox(height: 12),
+              _buildSingleShopRewardCard(rules[index]),
+            ],
+          ],
         );
+      },
+    );
   }
 
   Widget _buildSingleShopRewardCard(RewardRule rule) {
     final percent = (rule.discountRate * 100).round();
 
     return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF292F2A), Color(0xFF414A40)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF292F2A), Color(0xFF414A40)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
-            borderRadius: BorderRadius.circular(14),
+            child: const Icon(
+              Icons.card_giftcard,
+              color: Color(0xFFFFD782),
+              size: 27,
+            ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.card_giftcard,
-                  color: Color(0xFFFFD782),
-                  size: 27,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        const Text(
-                          'SHOP REWARD',
-                          style: TextStyle(
-                            color: Color(0xFFFFD782),
-                            fontSize: 10,
-                            letterSpacing: 1.2,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          percent.toString() + '% OFF',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      rule.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
+                    const Text(
+                      'SHOP REWARD',
+                      style: TextStyle(
+                        color: Color(0xFFFFD782),
+                        fontSize: 10,
+                        letterSpacing: 1.2,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const Spacer(),
                     Text(
-                      'Earn after spending ' + r'$' +
-                          rule.minimumQualifyingSubtotal.toStringAsFixed(2) + '+',
+                      percent.toString() + '% OFF',
                       style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Redeem on ' + r'$' +
-                          rule.minimumRedemptionSubtotal.toStringAsFixed(2) +
-                          '+ orders · Valid ' + rule.validityDays.toString() + ' days',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                      ),
-                    ),
-                    if (rule.description != null &&
-                        rule.description!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        rule.description!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 5),
+                Text(
+                  rule.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Earn after spending ' + r'$' +
+                      rule.minimumQualifyingSubtotal.toStringAsFixed(2) + '+',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Redeem on ' + r'$' +
+                      rule.minimumRedemptionSubtotal.toStringAsFixed(2) +
+                      '+ orders · Valid ' + rule.validityDays.toString() + ' days',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                  ),
+                ),
+                if (rule.description != null &&
+                    rule.description!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    rule.description!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
