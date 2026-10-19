@@ -141,10 +141,16 @@ class _ShopScreenState extends State<ShopScreen> {
         if (rules == null || rules.isEmpty) {
           return const SizedBox.shrink();
         }
-        final rule = rules.first;
-        final percent = (rule.discountRate * 100).round();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: rules.map(_buildSingleShopRewardCard).toList(),
+        );
+  }
 
-        return Container(
+  Widget _buildSingleShopRewardCard(RewardRule rule) {
+    final percent = (rule.discountRate * 100).round();
+
+    return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
