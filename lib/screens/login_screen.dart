@@ -11,6 +11,7 @@ import '../providers/favorite_provider.dart';
 import '../providers/catalog_provider.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import 'set_foodie_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -106,7 +107,16 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('Failed to get Firebase ID token');
       }
 
-      await FoodieApi.instance.googleLogin(firebaseIdToken);
+      final googleResult = await FoodieApi.instance.googleLogin(firebaseIdToken);
+      if (!mounted) return;
+      if (googleResult['requiresPasswordSetup'] == true) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const SetFoodiePasswordScreen()),
+          (_) => false,
+        );
+        return;
+      }
 
       // Exchange the Firebase ID token for the existing Foodie access/refresh tokens.
       // await FoodieApi.instance.googleLogin(firebaseIdToken);
