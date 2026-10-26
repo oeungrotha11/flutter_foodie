@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:pos_product/screens/home_screen.dart';
@@ -75,6 +77,57 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return; // The user cancelled the Google picker.
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final firebaseIdToken = await userCredential.user?.getIdToken();
+
+      if (firebaseIdToken == null || firebaseIdToken.isEmpty) {
+        throw const ApiException('Google sign-in did not return a Firebase ID token.');
+      }
+
+      // Exchange the Firebase ID token for the existing Foodie access/refresh tokens.
+      await FoodieApi.instance.googleLogin(firebaseIdToken);
+      if (!mounted) return;
+
+      unawaited(context.read<CatalogProvider>().load());
+      unawaited(context.read<FavoriteProvider>().load());
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              error is ApiException
+                  ? error.message
+                  : 'Google sign-in failed. Please try again.',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -300,14 +353,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 24.0,
                       height: 24.0,
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Google login is coming soon.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    },
+                    onPressed: _isLoading ? null : signInWithGoogle,
                   ),
 
                   const SizedBox(height: 26),
