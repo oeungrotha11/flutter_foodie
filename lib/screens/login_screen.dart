@@ -85,7 +85,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final googleUser = await GoogleSignIn().signIn();
+      // Clear the previously selected Google account so the account picker can appear.
+      final googleSignIn = GoogleSignIn();
+      await googleSignIn.signOut();
+      final googleUser = await googleSignIn.signIn();
       if (googleUser == null) return; // The user cancelled the Google picker.
 
       final googleAuth = await googleUser.authentication;
