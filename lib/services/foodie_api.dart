@@ -106,6 +106,20 @@ class FoodieApi {
     );
   }
 
+  Future<void> setPassword({
+    required String password,
+    required String confirmPassword,
+  }) async {
+    await _api.post(
+      '/api/v1/user/set-password',
+      auth: true,
+      body: {
+        'password': password,
+        'confirmPassword': confirmPassword,
+      },
+    );
+  }
+
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
