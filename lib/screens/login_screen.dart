@@ -59,18 +59,18 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            error is ApiException
-                ? error.message
-                : 'Unable to sign in. Check your connection and try again.',
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              error is ApiException
+                  ? error.message
+                  : 'Unable to sign in. Check your connection and try again.',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
     } finally {
       if (mounted) {
         setState(() {
@@ -93,15 +93,20 @@ class _LoginScreenState extends State<LoginScreen> {
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      final firebaseIdToken = await userCredential.user?.getIdToken();
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+      final firebaseIdToken = await FirebaseAuth.instance.currentUser!
+          .getIdToken();
 
-      if (firebaseIdToken == null || firebaseIdToken.isEmpty) {
-        throw const ApiException('Google sign-in did not return a Firebase ID token.');
+      if (firebaseIdToken == null) {
+        throw Exception('Failed to get Firebase ID token');
       }
 
-      // Exchange the Firebase ID token for the existing Foodie access/refresh tokens.
       await FoodieApi.instance.googleLogin(firebaseIdToken);
+
+      // Exchange the Firebase ID token for the existing Foodie access/refresh tokens.
+      // await FoodieApi.instance.googleLogin(firebaseIdToken);
       if (!mounted) return;
 
       unawaited(context.read<CatalogProvider>().load());
@@ -111,8 +116,12 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const HomeScreen()),
         (_) => false,
       );
-    } catch (error) {
+    } catch (error, stackTrace) {
+      debugPrint('Google sign-in error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
       if (!mounted) return;
+
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -120,10 +129,10 @@ class _LoginScreenState extends State<LoginScreen> {
             content: Text(
               error is ApiException
                   ? error.message
-                  : 'Google sign-in failed. Please try again.',
+                  : 'Google sign-in failed: $error',
             ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 6),
           ),
         );
     } finally {
@@ -353,7 +362,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 24.0,
                       height: 24.0,
                     ),
-                    onPressed: _isLoading ? null : signInWithGoogle,
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            signInWithGoogle();
+                          },
                   ),
 
                   const SizedBox(height: 26),
@@ -414,7 +427,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildSocialLoginButton({
     required String label,
     required Widget leading,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return SizedBox(
       width: double.infinity,
