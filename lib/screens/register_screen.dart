@@ -12,6 +12,7 @@ import 'package:intl_phone_field/phone_number.dart';
 import '../services/foodie_api.dart';
 import '../services/api_client.dart';
 import 'login_screen.dart';
+import 'verify_email_screen.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -56,9 +57,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration successful. Please login.'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('Account created. Check your email for the verification code.'),
+          backgroundColor: Colors.green,
+        ),
       );
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifyEmailScreen(email: emailController.text.trim()),
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
