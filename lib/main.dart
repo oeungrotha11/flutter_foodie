@@ -9,30 +9,32 @@ import 'package:provider/provider.dart';
 
 void main() {
   runApp(
-    DevicePreview(
-      builder: (context) {
-        return MultiProvider(
-          providers: [
-            ChangeNotifierProvider(create: (_) => CartProvider()),
-            ChangeNotifierProvider(create: (_) => NavigationProvider()),
-            ChangeNotifierProvider(create: (_) => CatalogProvider()..load()),
-            ChangeNotifierProvider(create: (_) => FavoriteProvider()),
-          ],
-          child: const MyApp(),
-        );
-      },
-    ),
 
-    // MultiProvider(
-    //   providers: [
-    //     ChangeNotifierProvider(create: (_) => CartProvider()),
-    //     ChangeNotifierProvider(
-    //       create: (_) => FavoriteProvider()..load(),
-    //     ),
-    //     ChangeNotifierProvider(create: (_) => NavigationProvider()),
-    //   ],
-    //   child: const MyApp(),
+    // DevicePreview(
+    //   builder: (context) {
+    //     return MultiProvider(
+    //       providers: [
+    //         ChangeNotifierProvider(create: (_) => CartProvider()),
+    //         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+    //         ChangeNotifierProvider(create: (_) => CatalogProvider()..load()),
+    //         ChangeNotifierProvider(create: (_) => FavoriteProvider()),
+    //       ],
+    //       child: const MyApp(),
+    //     );
+    //   },
     // ),
+
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(
+          create: (_) => FavoriteProvider()..load(),
+        ),
+        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+      ],
+      child: const MyApp(),
+    ),
+    
   );
 }
 

@@ -306,12 +306,17 @@ class _ShopScreenState extends State<ShopScreen> {
                       CarouselSlider(
                         items: [
                           for (final item in _slider)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                item,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  item,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                         ],

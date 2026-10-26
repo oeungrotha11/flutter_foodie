@@ -43,3 +43,27 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+tasks.register<Copy>("copyDebugApkToFlutterOutput") {
+    dependsOn("assembleDebug")
+
+    from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
+    into(rootProject.layout.projectDirectory.dir("../build/app/outputs/flutter-apk"))
+    rename { "app-debug.apk" }
+}
+
+
+val flutterApkSource = layout.buildDirectory.dir("outputs/flutter-apk")
+val flutterApkDestination =
+    rootProject.layout.projectDirectory.dir("../build/app/outputs/flutter-apk")
+
+tasks.register<Copy>("syncFlutterApksToFlutterCli") {
+    from(flutterApkSource)
+    into(flutterApkDestination)
+}
+
+tasks.matching {
+    it.name == "assembleDebug" || it.name == "assembleRelease"
+}.configureEach {
+    finalizedBy("syncFlutterApksToFlutterCli")
+}

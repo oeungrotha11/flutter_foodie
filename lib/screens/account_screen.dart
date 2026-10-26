@@ -6,6 +6,7 @@ import 'package:pos_product/screens/favorite_screen.dart';
 import 'package:pos_product/screens/login_screen.dart';
 import 'package:pos_product/screens/rewards_screen.dart';
 import 'package:pos_product/screens/change_password_screen.dart';
+import 'package:pos_product/screens/edit_profile_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/favorite_provider.dart';
@@ -67,57 +68,37 @@ class _AccountScreenState extends State<AccountScreen> {
         _address = (profile['address'] ?? deliveryAddress['address'] ?? '')
             .toString();
         _city = (profile['city'] ?? deliveryAddress['city'] ?? '').toString();
-        _phone = (profile['phone'] ?? deliveryAddress['phone'] ?? '').toString();
+        _phone = (profile['phone'] ?? deliveryAddress['phone'] ?? '')
+            .toString();
       });
     } catch (_) {}
   }
 
   Future<void> _editProfile() async {
-    final changes = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (_) => _EditProfileDialog(
-        username: _name,
-        address: _address,
-        city: _city,
-        phone: _phone,
-        email: _email,
+    final changes = await Navigator.push<Map<String, String>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(
+          username: _name,
+          address: _address,
+          city: _city,
+          phone: _phone,
+          email: _email,
+        ),
       ),
     );
     if (changes == null || !mounted) return;
 
-    try {
-      final updated = await FoodieApi.instance.updateCurrentUser(
-        username: changes['username']!,
-        address: changes['address']!,
-        city: changes['city']!,
-        phone: changes['phone']!,
-        email: changes['email']!,
-      );
-      if (!mounted) return;
-      setState(() {
-        _name = (updated['username'] ?? updated['name'] ?? changes['username'])
-            .toString();
-        _email = (updated['email'] ?? changes['email']).toString();
-        _address = (updated['address'] ?? changes['address']).toString();
-        _city = (updated['city'] ?? changes['city']).toString();
-        _phone = (updated['phone'] ?? changes['phone']).toString();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully.')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            error is ApiException
-                ? error.message
-                : 'Could not update your profile.',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    setState(() {
+      _name = changes['username']!;
+      _email = changes['email']!;
+      _address = changes['address']!;
+      _city = changes['city']!;
+      _phone = changes['phone']!;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Profile updated successfully.')),
+    );
   }
 
   Future<void> _confirmLogout() async {
@@ -448,10 +429,7 @@ class _AccountScreenState extends State<AccountScreen> {
               subtitle,
               style: const TextStyle(color: Color(0xFF777982), fontSize: 11),
             ),
-            trailing: const Icon(
-              Icons.chevron_right,
-              color: Color(0xFF9A9BA2),
-            ),
+            trailing: const Icon(Icons.chevron_right, color: Color(0xFF9A9BA2)),
             onTap: onTap,
           ),
         ),
@@ -504,164 +482,6 @@ class _AccountScreenState extends State<AccountScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _EditProfileDialog extends StatefulWidget {
-  const _EditProfileDialog({
-    required this.username,
-    required this.address,
-    required this.city,
-    required this.phone,
-    required this.email,
-  });
-
-  final String username;
-  final String address;
-  final String city;
-  final String phone;
-  final String email;
-
-  @override
-  State<_EditProfileDialog> createState() => _EditProfileDialogState();
-}
-
-class _EditProfileDialogState extends State<_EditProfileDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _usernameController;
-  late final TextEditingController _addressController;
-  late final TextEditingController _cityController;
-  late final TextEditingController _phoneController;
-  late final TextEditingController _emailController;
-
-  @override
-  void initState() {
-    super.initState();
-    _usernameController = TextEditingController(text: widget.username);
-    _addressController = TextEditingController(text: widget.address);
-    _cityController = TextEditingController(text: widget.city);
-    _phoneController = TextEditingController(text: widget.phone);
-    _emailController = TextEditingController(text: widget.email);
-  }
-
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _addressController.dispose();
-    _cityController.dispose();
-    _phoneController.dispose();
-    _emailController.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
-    Navigator.of(context).pop({
-      'username': _usernameController.text.trim(),
-      'address': _addressController.text.trim(),
-      'city': _cityController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'email': _emailController.text.trim(),
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      scrollable: true,
-      title: const Text('Edit profile'),
-      content: Form(
-        key: _formKey,
-        child: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _usernameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter your name'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-                validator: (value) {
-                  final email = value?.trim() ?? '';
-                  if (email.isEmpty) return 'Enter your email';
-                  if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                      .hasMatch(email)) {
-                    return 'Enter a valid email address';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _addressController,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Address',
-                  prefixIcon: Icon(Icons.location_on_outlined),
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter your address'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _cityController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'City',
-                  prefixIcon: Icon(Icons.location_city_outlined),
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter your city'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter your phone number'
-                    : null,
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFF5233B),
-            foregroundColor: Colors.white,
-          ),
-          onPressed: _save,
-          child: const Text('Save'),
-        ),
-      ],
     );
   }
 }
