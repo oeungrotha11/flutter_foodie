@@ -31,6 +31,25 @@ class FoodieApi {
     return Map<String, dynamic>.from(data);
   }
 
+  Future<Map<String, dynamic>> googleLogin(String firebaseIdToken) async {
+    final data = await _api.post(
+      '/api/v1/auth/google',
+      body: {'firebaseIdToken': firebaseIdToken},
+    );
+    if (data is! Map ||
+        data['access'] == null ||
+        data['refresh'] == null ||
+        data['access'].toString().trim().isEmpty ||
+        data['refresh'].toString().trim().isEmpty) {
+      throw const ApiException('The server returned an invalid Google login response.');
+    }
+    await _api.saveTokens(
+      data['access'].toString().trim(),
+      data['refresh'].toString().trim(),
+    );
+    return Map<String, dynamic>.from(data);
+  }
+
   Future<void> register({
     required String username,
     required String email,
