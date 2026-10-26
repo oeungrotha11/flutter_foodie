@@ -13,6 +13,7 @@ import '../services/foodie_api.dart';
 import '../services/api_client.dart';
 import 'login_screen.dart';
 import 'verify_email_screen.dart';
+import 'set_foodie_password_screen.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -100,7 +101,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       // The backend verifies this Firebase token and creates/returns the Foodie account.
-      await FoodieApi.instance.googleLogin(firebaseIdToken);
+      final googleResult = await FoodieApi.instance.googleLogin(firebaseIdToken);
+      if (!mounted) return;
+      if (googleResult['requiresPasswordSetup'] == true) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const SetFoodiePasswordScreen()),
+          (_) => false,
+        );
+        return;
+      }
       if (!mounted) return;
       unawaited(context.read<CatalogProvider>().load());
       unawaited(context.read<FavoriteProvider>().load());
