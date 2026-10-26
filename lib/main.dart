@@ -19,6 +19,7 @@ Future<void> main() async {
     //       providers: [
     //         ChangeNotifierProvider(create: (_) => CartProvider()),
     //         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(create: (_) => CatalogProvider()),
     //         ChangeNotifierProvider(create: (_) => CatalogProvider()..load()),
     //         ChangeNotifierProvider(create: (_) => FavoriteProvider()),
     //       ],
