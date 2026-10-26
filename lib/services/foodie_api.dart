@@ -67,6 +67,23 @@ class FoodieApi {
     );
   }
 
+  Future<void> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    await _api.post(
+      '/api/v1/auth/verify-email',
+      body: {'email': email, 'code': code},
+    );
+  }
+
+  Future<void> resendVerificationCode(String email) async {
+    await _api.post(
+      '/api/v1/auth/resend-verification',
+      body: {'email': email},
+    );
+  }
+
   Future<void> requestPasswordReset(String email) async {
     await _api.post(
       '/api/v1/auth/forgot-password',
