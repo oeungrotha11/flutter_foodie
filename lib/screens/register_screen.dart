@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../screens/home_screen.dart';
+import '../providers/catalog_provider.dart';
+import '../providers/favorite_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl_phone_field/phone_number.dart';
 import '../services/foodie_api.dart';
@@ -18,6 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
   String completePhoneNumber = '';
 
   final TextEditingController nameController = TextEditingController();
@@ -32,7 +41,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       TextEditingController();
 
   Future<void> register() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isLoading || !_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
     try {
       await FoodieApi.instance.register(
         username: nameController.text.trim(),
@@ -55,6 +65,54 @@ class _RegisterScreenState extends State<RegisterScreen> {
         content: Text(error is ApiException ? error.message : 'Unable to register. Check your connection and try again.'),
         backgroundColor: Colors.red,
       ));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> registerWithGoogle() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      final googleSignIn = GoogleSignIn();
+      await googleSignIn.signOut();
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      final firebaseIdToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (firebaseIdToken == null || firebaseIdToken.isEmpty) {
+        throw Exception('Could not verify your Google account. Please try again.');
+      }
+
+      // The backend verifies this Firebase token and creates/returns the Foodie account.
+      await FoodieApi.instance.googleLogin(firebaseIdToken);
+      if (!mounted) return;
+      unawaited(context.read<CatalogProvider>().load());
+      unawaited(context.read<FavoriteProvider>().load());
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(error is ApiException
+              ? error.message
+              : 'Google registration failed. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -249,7 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     height: 40,
 
                     child: ElevatedButton(
-                      onPressed: register,
+                      onPressed: _isLoading ? null : register,
 
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF5233B),
@@ -261,17 +319,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
 
-                      child: const Text(
-                        "REGISTER",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 19,
+                              height: 19,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              "CREATE ACCOUNT",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  Row(
+                    children: [
+                      const Expanded(child: Divider(color: Colors.grey)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'or sign up with',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
+                      ),
+                      const Expanded(child: Divider(color: Colors.grey)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: OutlinedButton(
+                      onPressed: _isLoading ? null : registerWithGoogle,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black87,
+                        side: const BorderSide(color: Color(0xFFD6D6D6)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset(
+                            'assets/svg/google.svg',
+                            width: 22,
+                            height: 22,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Continue with Google',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
                     ),
                   ),
 
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 22),
 
                   // Login
                   Row(
