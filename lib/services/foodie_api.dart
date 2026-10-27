@@ -93,6 +93,7 @@ class FoodieApi {
 
   Future<void> resetPassword({
     required String email,
+    required String code,
     required String newPassword,
     required String confirmPassword,
   }) async {
@@ -100,6 +101,7 @@ class FoodieApi {
       '/api/v1/auth/reset-password',
       body: {
         'email': email,
+        'code': code,
         'newPassword': newPassword,
         'confirmPassword': confirmPassword,
       },
