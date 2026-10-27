@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pos_product/providers/cart_provider.dart';
 import 'package:pos_product/screens/delivery_address_screen.dart';
 import 'package:pos_product/screens/order_success_screen.dart';
+import 'package:pos_product/screens/aba_payway_checkout_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -166,6 +167,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final order = Order.fromJson(Map<String, dynamic>.from(response));
       final finalTotal = order.total;
       if (!mounted) return;
+
+      if (paymentMethod == 'ABA PayWay') {
+        final orderId = int.tryParse(order.id);
+        if (orderId == null) {
+          throw const ApiException('The server returned an invalid order ID for ABA PayWay.');
+        }
+        final checkout = await FoodieApi.instance.createAbaPayWayCheckout(orderId);
+        if (!mounted) return;
+        final paid = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AbaPayWayCheckoutScreen(
+              orderId: orderId,
+              transactionId: checkout['transactionId']!,
+              checkoutHtml: checkout['checkoutHtml']!,
+              total: finalTotal,
+            ),
+          ),
+        );
+        if (paid != true || !mounted) return;
+      }
+
       cart.clearCart();
       Navigator.pushAndRemoveUntil(
         context,
@@ -255,6 +278,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _paymentOption(icon: Icons.qr_code_2, title: 'QR Payment', subtitle: 'Pay by QR code', value: 'QR Payment'),
           const SizedBox(height: 8),
           _paymentOption(icon: Icons.credit_card_outlined, title: 'Card', subtitle: 'Credit or debit card', value: 'Card'),
+          const SizedBox(height: 8),
+          _paymentOption(icon: Icons.qr_code_2_rounded, title: 'ABA PayWay', subtitle: 'ABA KHQR and supported online payments', value: 'ABA PayWay'),
           const SizedBox(height: 24),
           _sectionTitle('Reward wallet', ' '),
           const SizedBox(height: 12),
