@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/foodie_api.dart';
+import 'forgot_password_screen.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
-  const ChangePasswordScreen({super.key});
+  final String initialEmail;
+
+  const ChangePasswordScreen({super.key, this.initialEmail = ''});
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -109,7 +112,26 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ? 'Passwords do not match'
                 : null,
           ),
-          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _loading
+                  ? null
+                  : () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ForgotPasswordScreen(
+                            initialEmail: widget.initialEmail,
+                          ),
+                        ),
+                      ),
+              child: const Text(
+                'Forgot your password?',
+                style: TextStyle(color: Color(0xFFF5233B)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           SizedBox(
             height: 40,
             child: ElevatedButton(
