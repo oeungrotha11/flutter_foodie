@@ -291,6 +291,33 @@ class FoodieApi {
   Future<dynamic> placeOrder(Map<String, dynamic> body) =>
       _api.post('/api/v1/orders', auth: true, body: body);
 
+  Future<Map<String, String>> createAbaPayWayCheckout(int orderId) async {
+    final data = await _api.post(
+      '/api/v1/payments/aba-payway/orders/$orderId/checkout',
+      auth: true,
+    );
+    if (data is! Map ||
+        data['transactionId'] == null ||
+        data['checkoutHtml'] == null) {
+      throw const ApiException('The server returned an invalid ABA PayWay checkout.');
+    }
+    return {
+      'transactionId': data['transactionId'].toString(),
+      'checkoutHtml': data['checkoutHtml'].toString(),
+    };
+  }
+
+  Future<void> verifyAbaPayWayPayment({
+    required int orderId,
+    required String transactionId,
+  }) async {
+    await _api.post(
+      '/api/v1/payments/aba-payway/orders/$orderId/verify',
+      auth: true,
+      body: {'transactionId': transactionId},
+    );
+  }
+
   Future<List<RewardRule>> rewardRules() async {
     final data = await _api.get('/api/v1/reward-rules', auth: true);
     dynamic rows = data;
