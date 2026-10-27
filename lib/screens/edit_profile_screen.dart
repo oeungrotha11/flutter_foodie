@@ -58,7 +58,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final updated = await FoodieApi.instance.updateCurrentUser(
         username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
+        email: widget.email.trim(),
         address: _addressController.text.trim(),
         city: _cityController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -70,7 +70,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     updated['name'] ??
                     _usernameController.text.trim())
                 .toString(),
-        'email': (updated['email'] ?? _emailController.text.trim()).toString(),
+        'email': widget.email,
         'address': (updated['address'] ?? _addressController.text.trim())
             .toString(),
         'city': (updated['city'] ?? _cityController.text.trim()).toString(),
@@ -128,6 +128,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             controller: _emailController,
             label: 'Email',
             icon: Icons.email_outlined,
+            readOnly: true,
+            helperText: 'Email address cannot be changed',
             keyboardType: TextInputType.emailAddress,
             autofillHints: const [AutofillHints.email],
             validator: (value) {
@@ -216,8 +218,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     TextInputType? keyboardType,
     Iterable<String>? autofillHints,
     TextCapitalization textCapitalization = TextCapitalization.none,
+    bool readOnly = false,
+    String? helperText,
   }) => TextFormField(
     controller: controller,
+    readOnly: readOnly,
     keyboardType: keyboardType,
     autofillHints: autofillHints,
     textCapitalization: textCapitalization,
@@ -227,6 +232,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     decoration: InputDecoration(
       labelText: label,
       hintText: 'Enter ${label.toLowerCase()}',
+      helperText: helperText,
       prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
       labelStyle: const TextStyle(fontSize: 11, color: Colors.grey),
       hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
