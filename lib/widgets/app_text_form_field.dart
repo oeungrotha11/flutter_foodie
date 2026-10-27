@@ -70,6 +70,7 @@ class AppTextFormField extends StatelessWidget {
       autovalidateMode: autovalidateMode,
       style: const TextStyle(fontSize: 12),
       decoration: InputDecoration(
+        
         labelText: labelText,
         hintText: hintText ?? 'Enter ${labelText.toLowerCase()}',
         helperText: helperText,

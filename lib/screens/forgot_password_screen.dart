@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_product/widgets/foodie_sliver_app_bar.dart';
 
 import '../services/api_client.dart';
 import '../services/foodie_api.dart';
@@ -101,12 +102,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8F8F8),
-    appBar: AppBar(
-      title: const Text('Forgot password'),
-      centerTitle: true,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black87,
-      elevation: 0,
+    appBar: const FoodieAppBar(
+      title: ('Forgot password'),
+      showBackButton: true,
+      showSearchButton: false,
+      showCartButton: false,
     ),
     body: Form(
       key: _formKey,

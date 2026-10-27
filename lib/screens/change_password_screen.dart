@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_product/widgets/foodie_sliver_app_bar.dart';
 
 import '../services/api_client.dart';
 import '../services/foodie_api.dart';
@@ -69,12 +70,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8F8F8),
-    appBar: AppBar(
-      title: const Text('Reset password'),
-      centerTitle: true,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black87,
-      elevation: 0,
+    appBar: const FoodieAppBar(
+      title: ('Reset password'),
+      showBackButton: true,
+      showSearchButton: false,
+      showCartButton: false,
     ),
     body: Form(
       key: _formKey,
@@ -91,7 +91,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             labelText: 'Current password',
             obscureText: _obscureCurrent,
             prefixIcon: Icons.lock_outline,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent), icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility)),
+            suffixIcon: IconButton(
+              onPressed: () =>
+                  setState(() => _obscureCurrent = !_obscureCurrent),
+              icon: Icon(
+                _obscureCurrent ? Icons.visibility_off : Icons.visibility,
+              ),
+            ),
             validator: (value) => value == null || value.isEmpty
                 ? 'Enter your current password'
                 : null,
@@ -102,7 +108,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             labelText: 'New password',
             obscureText: _obscureNew,
             prefixIcon: Icons.lock_outline,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscureNew = !_obscureNew), icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility)),
+            suffixIcon: IconButton(
+              onPressed: () => setState(() => _obscureNew = !_obscureNew),
+              icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
+            ),
             validator: (value) => _validateNewPassword(value),
           ),
           const SizedBox(height: 14),
@@ -111,10 +120,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             labelText: 'Confirm new password',
             obscureText: _obscureConfirm,
             prefixIcon: Icons.lock_outline,
-            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
-            validator: (value) => value != _newPassword.text
-                ? 'Passwords do not match'
-                : null,
+            suffixIcon: IconButton(
+              onPressed: () =>
+                  setState(() => _obscureConfirm = !_obscureConfirm),
+              icon: Icon(
+                _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+              ),
+            ),
+            validator: (value) =>
+                value != _newPassword.text ? 'Passwords do not match' : null,
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -122,13 +136,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               onPressed: _loading
                   ? null
                   : () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ForgotPasswordScreen(
-                            initialEmail: widget.initialEmail,
-                          ),
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ForgotPasswordScreen(
+                          initialEmail: widget.initialEmail,
                         ),
                       ),
+                    ),
               child: const Text(
                 'Forgot your password?',
                 style: TextStyle(color: Color(0xFFF5233B)),
