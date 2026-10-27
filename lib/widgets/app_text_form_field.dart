@@ -22,6 +22,7 @@ class AppTextFormField extends StatelessWidget {
     this.readOnly = false,
     this.helperText,
     this.maxLength,
+    this.counterText,
     this.onChanged,
     this.autovalidateMode = AutovalidateMode.onUserInteractionIfError,
   });
@@ -41,6 +42,7 @@ class AppTextFormField extends StatelessWidget {
   final bool readOnly;
   final String? helperText;
   final int? maxLength;
+  final String? counterText;
   final ValueChanged<String>? onChanged;
   final AutovalidateMode autovalidateMode;
 
@@ -71,6 +73,7 @@ class AppTextFormField extends StatelessWidget {
         labelText: labelText,
         hintText: hintText ?? 'Enter ${labelText.toLowerCase()}',
         helperText: helperText,
+        counterText: counterText,
         prefixIcon: prefixIcon == null
             ? null
             : Icon(prefixIcon, size: 16, color: _primaryColor),
