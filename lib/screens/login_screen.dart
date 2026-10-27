@@ -12,6 +12,7 @@ import '../providers/catalog_provider.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'set_foodie_password_screen.dart';
+import '../widgets/app_text_form_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -189,11 +190,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 55),
 
                   // Email
-                  _buildTextFormField(
+                  AppTextFormField(
                     labelText: "Email",
                     controller: emailController,
                     hintText: "Enter email",
-                    icon: Icons.email,
+                    prefixIcon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
 
                     validator: (value) {
@@ -216,11 +217,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 14),
 
                   // Password
-                  _buildTextFormField(
+                  AppTextFormField(
                     labelText: "Password",
                     controller: passwordController,
                     hintText: "Enter password",
-                    icon: Icons.lock,
+                    prefixIcon: Icons.lock,
                     obscureText: _obscurePassword,
 
                     validator: (value) {
@@ -474,75 +475,6 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(width: 24),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTextFormField({
-    required TextEditingController controller,
-    required String hintText,
-    required String labelText,
-    required IconData icon,
-    required String? Function(String?) validator,
-    bool obscureText = false,
-    Widget? suffixIcon,
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      validator: validator,
-      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
-
-      style: const TextStyle(fontSize: 12),
-
-      decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
-
-        labelStyle: TextStyle(fontSize: 11, color: Colors.grey),
-        hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-
-        prefixIconConstraints: const BoxConstraints(
-          minWidth: 35,
-          minHeight: 35,
-        ),
-
-        suffixIcon: suffixIcon,
-
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-        ),
-
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-        ),
-
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
-        ),
-
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.red, width: 0.8),
-        ),
-
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.red, width: 1),
-        ),
-
-        errorStyle: const TextStyle(fontSize: 10),
       ),
     );
   }
