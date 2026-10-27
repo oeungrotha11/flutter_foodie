@@ -340,7 +340,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const ChangePasswordScreen(),
+                      builder: (_) => ChangePasswordScreen(initialEmail: _email),
                     ),
                   ),
                 ),
