@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/foodie_api.dart';
+import '../widgets/app_text_form_field.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
@@ -108,10 +109,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         children: [
-          _field(
+          AppTextFormField(
             controller: _usernameController,
-            label: 'Name',
-            icon: Icons.person_outline,
+            labelText: 'Name',
+            prefixIcon: Icons.person_outline,
             textCapitalization: TextCapitalization.words,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -124,10 +125,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
           ),
           const SizedBox(height: 14),
-          _field(
+          AppTextFormField(
             controller: _emailController,
-            label: 'Email',
-            icon: Icons.email_outlined,
+            labelText: 'Email',
+            prefixIcon: Icons.email_outlined,
             readOnly: true,
             helperText: 'Email address cannot be changed',
             keyboardType: TextInputType.emailAddress,
@@ -144,30 +145,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             },
           ),
           const SizedBox(height: 14),
-          _field(
+          AppTextFormField(
             controller: _addressController,
-            label: 'Address',
-            icon: Icons.location_on_outlined,
+            labelText: 'Address',
+            prefixIcon: Icons.location_on_outlined,
             textCapitalization: TextCapitalization.sentences,
             validator: (value) => value == null || value.trim().isEmpty
                 ? 'Enter your address'
                 : null,
           ),
           const SizedBox(height: 14),
-          _field(
+          AppTextFormField(
             controller: _cityController,
-            label: 'City',
-            icon: Icons.location_city_outlined,
+            labelText: 'City',
+            prefixIcon: Icons.location_city_outlined,
             textCapitalization: TextCapitalization.words,
             validator: (value) => value == null || value.trim().isEmpty
                 ? 'Enter your city'
                 : null,
           ),
           const SizedBox(height: 14),
-          _field(
+          AppTextFormField(
             controller: _phoneController,
-            label: 'Phone',
-            icon: Icons.phone_outlined,
+            labelText: 'Phone',
+            prefixIcon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             validator: (value) => value == null || value.trim().isEmpty
                 ? 'Enter your phone number'
@@ -206,58 +207,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
         ],
-      ),
-    ),
-  );
-
-  Widget _field({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required String? Function(String?) validator,
-    TextInputType? keyboardType,
-    Iterable<String>? autofillHints,
-    TextCapitalization textCapitalization = TextCapitalization.none,
-    bool readOnly = false,
-    String? helperText,
-  }) => TextFormField(
-    controller: controller,
-    readOnly: readOnly,
-    keyboardType: keyboardType,
-    autofillHints: autofillHints,
-    textCapitalization: textCapitalization,
-    validator: validator,
-    autovalidateMode: AutovalidateMode.onUserInteractionIfError,
-    style: const TextStyle(fontSize: 12),
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: 'Enter ${label.toLowerCase()}',
-      helperText: helperText,
-      prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
-      labelStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-      hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-      prefixIconConstraints: const BoxConstraints(minWidth: 35, minHeight: 35),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      errorStyle: const TextStyle(fontSize: 10),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.red, width: 0.8),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.red, width: 1),
       ),
     ),
   );

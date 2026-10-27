@@ -1,5 +1,6 @@
-import 'session_token_store_memory.dart'
-    if (dart.library.js_interop) 'session_token_store_web.dart' as platform;
+import 'session_token_store_mobile.dart'
+    if (dart.library.js_interop) 'session_token_store_web.dart'
+    as platform;
 
 /// Keeps authentication tokens only for the current app/browser session.
 class SessionTokenStore {

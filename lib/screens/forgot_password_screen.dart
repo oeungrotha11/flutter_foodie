@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pos_product/widgets/foodie_sliver_app_bar.dart';
 
 import '../services/api_client.dart';
 import '../services/foodie_api.dart';
+import '../widgets/app_text_form_field.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   final String initialEmail;
@@ -100,12 +102,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF8F8F8),
-    appBar: AppBar(
-      title: const Text('Forgot password'),
-      centerTitle: true,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black87,
-      elevation: 0,
+    appBar: const FoodieAppBar(
+      title: ('Forgot password'),
+      showBackButton: true,
+      showSearchButton: false,
+      showCartButton: false,
     ),
     body: Form(
       key: _formKey,
@@ -117,17 +118,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             style: TextStyle(color: Color(0xFF73757D)),
           ),
           const SizedBox(height: 20),
-          TextFormField(
+          AppTextFormField(
             controller: _email,
+            labelText: 'Email',
+            prefixIcon: Icons.email_outlined,
             enabled: !_requestSent,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText: 'Email',
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
             validator: (value) {
               final email = value?.trim() ?? '';
               if (email.isEmpty) return 'Enter your email';
@@ -144,27 +141,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               style: TextStyle(color: Color(0xFF73757D), fontSize: 13),
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            AppTextFormField(
               controller: _code,
+              labelText: 'Verification code',
+              prefixIcon: Icons.password_outlined,
               keyboardType: TextInputType.number,
               maxLength: 6,
-              decoration: InputDecoration(
-                labelText: 'Verification code',
-                counterText: '',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+              counterText: '',
               validator: (value) => value != null && RegExp(r'^[0-9]{6}$').hasMatch(value.trim())
                   ? null
                   : 'Enter the 6-digit code from your email',
             ),
             const SizedBox(height: 16),
-            _passwordField(
+            AppTextFormField(
               controller: _newPassword,
-              label: 'New password',
-              obscure: _obscureNew,
-              toggle: () => setState(() => _obscureNew = !_obscureNew),
+              labelText: 'New password',
+              obscureText: _obscureNew,
+              prefixIcon: Icons.lock_outline,
+              suffixIcon: IconButton(onPressed: () => setState(() => _obscureNew = !_obscureNew), icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility)),
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Enter a new password';
                 if (value.length < 8) return 'Use at least 8 characters';
@@ -172,11 +166,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               },
             ),
             const SizedBox(height: 14),
-            _passwordField(
+            AppTextFormField(
               controller: _confirmPassword,
-              label: 'Confirm new password',
-              obscure: _obscureConfirm,
-              toggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+              labelText: 'Confirm new password',
+              obscureText: _obscureConfirm,
+              prefixIcon: Icons.lock_outline,
+              suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Confirm your new password';
                 if (value != _newPassword.text) return 'Passwords do not match';
@@ -215,28 +210,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
         ],
       ),
-    ),
-  );
-
-  Widget _passwordField({
-    required TextEditingController controller,
-    required String label,
-    required bool obscure,
-    required VoidCallback toggle,
-    required String? Function(String?) validator,
-  }) => TextFormField(
-    controller: controller,
-    obscureText: obscure,
-    validator: validator,
-    decoration: InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      suffixIcon: IconButton(
-        onPressed: toggle,
-        icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
-      ),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
 }

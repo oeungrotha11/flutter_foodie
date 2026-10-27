@@ -15,6 +15,7 @@ import 'login_screen.dart';
 import 'verify_email_screen.dart';
 import 'set_foodie_password_screen.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import '../widgets/app_text_form_field.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -171,7 +172,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 45),
 
                   // Name
-                  _buildTextFormField(
+                  AppTextFormField(
                     labelText: "Name",
                     controller: nameController,
                     hintText: "Your name",
@@ -205,7 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 14),
 
                   // Email
-                  _buildTextFormField(
+                  AppTextFormField(
                     labelText: "Email",
                     controller: emailController,
                     hintText: "Enter email",
@@ -232,7 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 14),
 
                   // Password
-                  _buildTextFormField(
+                  AppTextFormField(
                     labelText: "Password",
                     controller: passwordController,
                     hintText: "Enter password",
@@ -276,7 +277,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 14),
 
                   // Confirm password
-                  _buildTextFormField(
+                  AppTextFormField(
                     labelText: "Confirm password",
                     controller: confirmPasswordController,
                     hintText: "Enter confirm password",
@@ -499,34 +500,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(5),
         borderSide: const BorderSide(color: Colors.red, width: 1),
-      ),
-    );
-  }
-
-  Widget _buildTextFormField({
-    required TextEditingController controller,
-    required String labelText,
-    required String hintText,
-    required IconData prefixIcon,
-    required String? Function(String?) validator,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    void Function(String)? onChanged,
-    Widget? suffixIcon,
-  }) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      onChanged: onChanged,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
-      style: const TextStyle(fontSize: 12),
-      decoration: _buildInputDecoration(
-        labelText: labelText,
-        hintText: hintText,
-        prefixIcon: Icon(prefixIcon, size: 16, color: const Color(0xFFF5233B)),
-        suffixIcon: suffixIcon,
       ),
     );
   }
