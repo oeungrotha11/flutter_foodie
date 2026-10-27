@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../services/foodie_api.dart';
 import 'forgot_password_screen.dart';
+import '../widgets/app_text_form_field.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   final String initialEmail;
@@ -85,28 +86,34 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             style: TextStyle(color: Color(0xFF73757D)),
           ),
           const SizedBox(height: 22),
-          _passwordField(
+          AppTextFormField(
             controller: _currentPassword,
-            label: 'Current password',
-            obscure: _obscureCurrent,
+            labelText: 'Current password',
+            obscureText: _obscureCurrent,
+            prefixIcon: Icons.lock_outline,
+            suffixIcon: IconButton(onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent), icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility)),
             toggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
             validator: (value) => value == null || value.isEmpty
                 ? 'Enter your current password'
                 : null,
           ),
           const SizedBox(height: 14),
-          _passwordField(
+          AppTextFormField(
             controller: _newPassword,
-            label: 'New password',
-            obscure: _obscureNew,
+            labelText: 'New password',
+            obscureText: _obscureNew,
+            prefixIcon: Icons.lock_outline,
+            suffixIcon: IconButton(onPressed: () => setState(() => _obscureNew = !_obscureNew), icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility)),
             toggle: () => setState(() => _obscureNew = !_obscureNew),
             validator: (value) => _validateNewPassword(value),
           ),
           const SizedBox(height: 14),
-          _passwordField(
+          AppTextFormField(
             controller: _confirmPassword,
-            label: 'Confirm new password',
-            obscure: _obscureConfirm,
+            labelText: 'Confirm new password',
+            obscureText: _obscureConfirm,
+            prefixIcon: Icons.lock_outline,
+            suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
             toggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
             validator: (value) => value != _newPassword.text
                 ? 'Passwords do not match'
@@ -176,69 +183,4 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
     return null;
   }
-
-  Widget _passwordField({
-    required TextEditingController controller,
-    required String label,
-    required bool obscure,
-    required VoidCallback toggle,
-    required String? Function(String?) validator,
-  }) => TextFormField(
-    controller: controller,
-    obscureText: obscure,
-    validator: validator,
-    autovalidateMode: AutovalidateMode.onUserInteractionIfError,
-    style: const TextStyle(fontSize: 12),
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: 'Enter ${label.toLowerCase()}',
-      prefixIcon: const Icon(
-        Icons.lock,
-        size: 16,
-        color: Color(0xFFF5233B),
-      ),
-      suffixIcon: IconButton(
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 35, minHeight: 35),
-        splashRadius: 18,
-        onPressed: toggle,
-        icon: Icon(
-          obscure ? Icons.visibility_off : Icons.visibility,
-          size: 17,
-          color: Colors.black87,
-        ),
-      ),
-      labelStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-      hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-      prefixIconConstraints: const BoxConstraints(
-        minWidth: 35,
-        minHeight: 35,
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ),
-      errorStyle: const TextStyle(fontSize: 10),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.red, width: 0.8),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: const BorderSide(color: Colors.red, width: 1),
-      ),
-    ),
-  );
 }
