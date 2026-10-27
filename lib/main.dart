@@ -12,14 +12,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(
-
     // DevicePreview(
     //   builder: (context) {
     //     return MultiProvider(
     //       providers: [
     //         ChangeNotifierProvider(create: (_) => CartProvider()),
     //         ChangeNotifierProvider(create: (_) => NavigationProvider()),
-        ChangeNotifierProvider(create: (_) => CatalogProvider()),
     //         ChangeNotifierProvider(create: (_) => CatalogProvider()..load()),
     //         ChangeNotifierProvider(create: (_) => FavoriteProvider()),
     //       ],
@@ -27,18 +25,15 @@ Future<void> main() async {
     //     );
     //   },
     // ),
-
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CartProvider()),
-        ChangeNotifierProvider(
-          create: (_) => FavoriteProvider()..load(),
-        ),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(create: (_) => CatalogProvider()..load()),
+        ChangeNotifierProvider(create: (_) => FavoriteProvider()),
       ],
       child: const MyApp(),
     ),
-    
   );
 }
 
