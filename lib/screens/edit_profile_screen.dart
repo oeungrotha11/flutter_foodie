@@ -111,7 +111,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         children: [
           AppTextFormField(
             controller: _usernameController,
-            label: 'Name',
+            labelText: 'Name',
             prefixIcon: Icons.person_outline,
             textCapitalization: TextCapitalization.words,
             validator: (value) {
@@ -127,7 +127,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 14),
           AppTextFormField(
             controller: _emailController,
-            label: 'Email',
+            labelText: 'Email',
             prefixIcon: Icons.email_outlined,
             readOnly: true,
             helperText: 'Email address cannot be changed',
@@ -147,7 +147,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 14),
           AppTextFormField(
             controller: _addressController,
-            label: 'Address',
+            labelText: 'Address',
             prefixIcon: Icons.location_on_outlined,
             textCapitalization: TextCapitalization.sentences,
             validator: (value) => value == null || value.trim().isEmpty
@@ -157,7 +157,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 14),
           AppTextFormField(
             controller: _cityController,
-            label: 'City',
+            labelText: 'City',
             prefixIcon: Icons.location_city_outlined,
             textCapitalization: TextCapitalization.words,
             validator: (value) => value == null || value.trim().isEmpty
@@ -167,7 +167,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 14),
           AppTextFormField(
             controller: _phoneController,
-            label: 'Phone',
+            labelText: 'Phone',
             prefixIcon: Icons.phone_outlined,
             keyboardType: TextInputType.phone,
             validator: (value) => value == null || value.trim().isEmpty
