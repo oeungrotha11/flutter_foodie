@@ -92,7 +92,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             obscureText: _obscureCurrent,
             prefixIcon: Icons.lock_outline,
             suffixIcon: IconButton(onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent), icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility)),
-            toggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
             validator: (value) => value == null || value.isEmpty
                 ? 'Enter your current password'
                 : null,
@@ -104,7 +103,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             obscureText: _obscureNew,
             prefixIcon: Icons.lock_outline,
             suffixIcon: IconButton(onPressed: () => setState(() => _obscureNew = !_obscureNew), icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility)),
-            toggle: () => setState(() => _obscureNew = !_obscureNew),
             validator: (value) => _validateNewPassword(value),
           ),
           const SizedBox(height: 14),
@@ -114,7 +112,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             obscureText: _obscureConfirm,
             prefixIcon: Icons.lock_outline,
             suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm), icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility)),
-            toggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
             validator: (value) => value != _newPassword.text
                 ? 'Passwords do not match'
                 : null,
