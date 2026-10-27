@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/foodie_api.dart';
 import '../services/api_client.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
+import '../widgets/app_text_form_field.dart';
 
 class DeliveryAddressScreen extends StatefulWidget {
   const DeliveryAddressScreen({super.key});
@@ -88,15 +89,16 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
           children: [
-            _field(_addressController, 'Street address', Icons.home_outlined),
+            AppTextFormField(controller: _addressController, labelText: 'Street address', prefixIcon: Icons.home_outlined, validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null),
             const SizedBox(height: 14),
-            _field(_cityController, 'City', Icons.location_city_outlined),
+            AppTextFormField(controller: _cityController, labelText: 'City', prefixIcon: Icons.location_city_outlined, validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null),
             const SizedBox(height: 14),
-            _field(
-              _phoneController,
-              'Phone number',
-              Icons.phone_outlined,
+            AppTextFormField(
+              controller: _phoneController,
+              labelText: 'Phone number',
+              prefixIcon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
+              validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -118,58 +120,6 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _field(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: (value) =>
-          value == null || value.trim().isEmpty ? 'Required' : null,
-      style: const TextStyle(fontSize: 12),
-      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: 'Enter ${label.toLowerCase()}',
-        prefixIcon: Icon(icon, size: 16, color: const Color(0xFFF5233B)),
-        labelStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-        hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
-        prefixIconConstraints: const BoxConstraints(
-          minWidth: 35,
-          minHeight: 35,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-        errorStyle: const TextStyle(fontSize: 10),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.grey, width: 0.8),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Color(0xFFF5233B), width: 1),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.red, width: 0.8),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(5),
-          borderSide: const BorderSide(color: Colors.red, width: 1),
         ),
       ),
     );
