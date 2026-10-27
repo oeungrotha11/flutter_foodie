@@ -45,12 +45,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await FoodieApi.instance.requestPasswordReset(_email.text.trim());
       if (!mounted) return;
       setState(() => _requestSent = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('If this email belongs to a Foodie account, a reset code has been sent.'),
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('If an account exists for this email, a reset code has been sent.'),
           backgroundColor: Colors.green,
-        ),
-      );
+        ));
     } catch (error) {
       _showError(error);
     } finally {
@@ -69,12 +69,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         confirmPassword: _confirmPassword.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset successfully. Please sign in.'),
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('Password reset successfully. Please sign in again.'),
           backgroundColor: Colors.green,
-        ),
-      );
+        ));
       Navigator.pop(context);
     } catch (error) {
       _showError(error);
@@ -85,16 +85,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _showError(Object error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
         content: Text(
           error is ApiException
               ? error.message
               : 'Unable to reset your password. Please try again.',
         ),
         backgroundColor: Colors.red,
-      ),
-    );
+      ));
   }
 
   @override
@@ -113,7 +113,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           const Text(
-            'Enter the email address on your account to start password recovery.',
+            'Enter your account email. We will send a verification code before allowing you to reset your password.',
             style: TextStyle(color: Color(0xFF73757D)),
           ),
           const SizedBox(height: 20),
@@ -121,122 +121,45 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             controller: _email,
             enabled: !_requestSent,
             keyboardType: TextInputType.emailAddress,
-            textInputAction: _requestSent
-                ? TextInputAction.next
-                : TextInputAction.done,
+            textInputAction: TextInputAction.next,
             decoration: InputDecoration(
               labelText: 'Email',
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             ),
             validator: (value) {
               final email = value?.trim() ?? '';
               if (email.isEmpty) return 'Enter your email';
-              if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
+              if (!RegExp(r'^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$').hasMatch(email)) {
                 return 'Enter a valid email address';
               }
               return null;
             },
           ),
           if (_requestSent) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 18),
             const Text(
-              'If this email belongs to a Foodie account, a reset code has been sent. Enter the code and choose a new password.',
-              style: TextStyle(color: Color(0xFF217A45), fontSize: 13),
+              'Enter the 6-digit code sent to your email, then choose a new password. The code expires in 10 minutes.',
+              style: TextStyle(color: Color(0xFF73757D), fontSize: 13),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _code,
               keyboardType: TextInputType.number,
               maxLength: 6,
               decoration: InputDecoration(
-                labelText: '6-digit verification code',
-                helperText: 'Check your email. The code expires in 10 minutes.',
+                labelText: 'Verification code',
                 counterText: '',
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              validator: (value) => value != null && RegExp(r'^[0-9]{6}
-              controller: _newPassword,
-              label: 'New password',
-              obscure: _obscureNew,
-              toggle: () => setState(() => _obscureNew = !_obscureNew),
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Enter a new password';
-                if (value.length < 8) return 'Use at least 8 characters';
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-            _passwordField(
-              controller: _confirmPassword,
-              label: 'Confirm new password',
-              obscure: _obscureConfirm,
-              toggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
-              validator: (value) => value != _newPassword.text
-                  ? 'Passwords do not match'
-                  : null,
-            ),
-          ],
-          const SizedBox(height: 24),
-          SizedBox(
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _loading
+              validator: (value) => value != null && RegExp(r'^[0-9]{6}$').hasMatch(value.trim())
                   ? null
-                  : _requestSent
-                  ? _resetPassword
-                  : _requestReset,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF5233B),
-                foregroundColor: Colors.white,
-              ),
-              child: _loading
-                  ? const SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(_requestSent ? 'RESET PASSWORD' : 'SEND RESET REQUEST'),
+                  : 'Enter the 6-digit code from your email',
             ),
-          ),
-        ],
-      ),
-    ),
-  );
-
-  Widget _passwordField({
-    required TextEditingController controller,
-    required String label,
-    required bool obscure,
-    required VoidCallback toggle,
-    required String? Function(String?) validator,
-  }) => TextFormField(
-    controller: controller,
-    obscureText: obscure,
-    validator: validator,
-    decoration: InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: Colors.white,
-      suffixIcon: IconButton(
-        onPressed: toggle,
-        icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
-      ),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-  );
-}
-).hasMatch(value.trim())
-                  ? null : 'Enter the 6-digit code from your email',
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _passwordField(
               controller: _newPassword,
               label: 'New password',
@@ -254,20 +177,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               label: 'Confirm new password',
               obscure: _obscureConfirm,
               toggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
-              validator: (value) => value != _newPassword.text
-                  ? 'Passwords do not match'
-                  : null,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Confirm your new password';
+                if (value != _newPassword.text) return 'Passwords do not match';
+                return null;
+              },
             ),
           ],
           const SizedBox(height: 24),
           SizedBox(
             height: 50,
             child: ElevatedButton(
-              onPressed: _loading
-                  ? null
-                  : _requestSent
-                  ? _resetPassword
-                  : _requestReset,
+              onPressed: _loading ? null : (_requestSent ? _resetPassword : _requestReset),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF5233B),
                 foregroundColor: Colors.white,
@@ -275,14 +196,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               child: _loading
                   ? const SizedBox.square(
                       dimension: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : Text(_requestSent ? 'RESET PASSWORD' : 'SEND RESET REQUEST'),
+                  : Text(_requestSent ? 'VERIFY CODE & RESET PASSWORD' : 'SEND VERIFICATION CODE'),
             ),
           ),
+          if (_requestSent)
+            TextButton(
+              onPressed: _loading ? null : () {
+                setState(() {
+                  _requestSent = false;
+                  _code.clear();
+                  _newPassword.clear();
+                  _confirmPassword.clear();
+                });
+              },
+              child: const Text('Use a different email'),
+            ),
         ],
       ),
     ),
