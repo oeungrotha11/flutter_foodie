@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/foodie_api.dart';
 import '../services/api_client.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
+import 'map_location_picker_screen.dart';
 
 class DeliveryAddressScreen extends StatefulWidget {
   const DeliveryAddressScreen({super.key});
@@ -16,6 +17,8 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
   final _phoneController = TextEditingController();
+  double? _latitude;
+  double? _longitude;
 
   @override
   void initState() {
@@ -30,10 +33,14 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
       _addressController.text = (data['address'] ?? prefs.getString('delivery.address') ?? '').toString();
       _cityController.text = (data['city'] ?? prefs.getString('delivery.city') ?? '').toString();
       _phoneController.text = (data['phone'] ?? prefs.getString('delivery.phone') ?? '').toString();
+      _latitude = (data['latitude'] as num?)?.toDouble() ?? prefs.getDouble('delivery.latitude');
+      _longitude = (data['longitude'] as num?)?.toDouble() ?? prefs.getDouble('delivery.longitude');
     } catch (_) {
       _addressController.text = prefs.getString('delivery.address') ?? '';
       _cityController.text = prefs.getString('delivery.city') ?? '';
       _phoneController.text = prefs.getString('delivery.phone') ?? '';
+      _latitude = prefs.getDouble('delivery.latitude');
+      _longitude = prefs.getDouble('delivery.longitude');
     }
     if (mounted) setState(() {});
   }
@@ -46,6 +53,23 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
     super.dispose();
   }
 
+  Future<void> _chooseOnMap() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(builder: (_) => MapLocationPickerScreen(
+        initialLatitude: _latitude,
+        initialLongitude: _longitude,
+      )),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      _addressController.text = (result['address'] ?? '').toString();
+      _cityController.text = (result['city'] ?? 'Phnom Penh').toString();
+      _latitude = (result['latitude'] as num).toDouble();
+      _longitude = (result['longitude'] as num).toDouble();
+    });
+  }
+
   Future<void> _saveAddress() async {
     if (!_formKey.currentState!.validate()) return;
     try {
@@ -53,11 +77,17 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
         address: _addressController.text.trim(),
         city: _cityController.text.trim(),
         phone: _phoneController.text.trim(),
+        latitude: _latitude,
+        longitude: _longitude,
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('delivery.address', _addressController.text.trim());
       await prefs.setString('delivery.city', _cityController.text.trim());
       await prefs.setString('delivery.phone', _phoneController.text.trim());
+      if (_latitude != null && _longitude != null) {
+        await prefs.setDouble('delivery.latitude', _latitude!);
+        await prefs.setDouble('delivery.longitude', _longitude!);
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -88,6 +118,20 @@ class _DeliveryAddressScreenState extends State<DeliveryAddressScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
           children: [
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: _chooseOnMap,
+                icon: const Icon(Icons.map_outlined, color: Color(0xFFF5233B), size: 18),
+                label: Text(_latitude != null && _longitude != null ? 'CHANGE MAP LOCATION' : 'CHOOSE ON MAP', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFF5233B), side: const BorderSide(color: Color(0xFFF5233B)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))),
+              ),
+            ),
+            if (_latitude != null && _longitude != null) ...[
+              const SizedBox(height: 7),
+              Text('Coordinates: ${_latitude!.toStringAsFixed(6)}, ${_longitude!.toStringAsFixed(6)}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+            ],
+            const SizedBox(height: 14),
             _field(_addressController, 'Street address', Icons.home_outlined),
             const SizedBox(height: 14),
             _field(_cityController, 'City', Icons.location_city_outlined),
