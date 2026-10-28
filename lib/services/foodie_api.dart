@@ -345,6 +345,44 @@ class FoodieApi {
     );
   }
 
+  /// Requests a KHQR payload from the Spring Boot backend.
+  /// Use the server-calculated order total when checkout integration is added.
+  Future<Map<String, dynamic>> generateBakongQr({
+    required double amount,
+    String currency = 'KHR',
+    required String billNumber,
+    int expirationMinutes = 15,
+    String merchantName = 'Foodie',
+    String merchantCity = 'PHNOM PENH',
+  }) async {
+    final data = await _api.post(
+      '/api/v1/bakong/generate-qr',
+      auth: true,
+      body: {
+        'amount': amount,
+        'currency': currency,
+        'billNumber': billNumber,
+        'expirationMinutes': expirationMinutes,
+        'merchantName': merchantName,
+        'merchantCity': merchantCity,
+      },
+    );
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('The server returned an invalid Bakong QR response.');
+  }
+
+  /// Checks a KHQR transaction hash through Spring Boot.
+  /// This does not itself mark any Foodie order as paid.
+  Future<Map<String, dynamic>> checkBakongTransaction(String md5) async {
+    final data = await _api.post(
+      '/api/v1/bakong/check-transaction',
+      auth: true,
+      body: {'md5': md5},
+    );
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('The server returned an invalid Bakong transaction response.');
+  }
+
   Future<List<dynamic>> orders() async {
     final data = await _api.get(
       '/api/v1/orders',
