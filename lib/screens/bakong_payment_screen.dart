@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../services/foodie_api.dart';
 import '../services/api_client.dart';
+import 'home_screen.dart';
 
 const _brandColor = Color(0xFFF5233B);
 const _mutedColor = Color(0xFF747782);
@@ -37,6 +38,41 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
   String? _errorMessage;
 
   bool get _isTestMode => widget.qrPayload.startsWith('FOODIE-TEST-NOT-PAYABLE|');
+
+  Future<void> _confirmLeavePayment() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave payment screen?'),
+        content: Text(
+          'Order #${widget.orderId} has already been created. Leaving this screen will not cancel the order or the payment request. '
+          'If you have not paid yet, you can return to shopping and check your order status later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Stay here'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Leave payment'),
+          ),
+        ],
+      ),
+    );
+
+    if (leave == true && mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    }
+  }
 
   Future<void> _checkPayment() async {
     if (_checking) return;
@@ -86,6 +122,11 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          tooltip: 'Back to shopping',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: _confirmLeavePayment,
+        ),
       ),
       body: SafeArea(
         child: ListView(
