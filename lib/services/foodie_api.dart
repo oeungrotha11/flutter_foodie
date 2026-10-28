@@ -282,7 +282,7 @@ class FoodieApi {
   }
 
   Future<Map<String, dynamic>> mapPlace(String placeId) async {
-    final data = await _api.get('/api/v1/maps/places/${Uri.encodeComponent(placeId)}');
+    final data = await _api.get('/api/v1/maps/places/${Uri.encodeComponent(placeId)}', auth: true);
     if (data is Map) return Map<String, dynamic>.from(data);
     throw const ApiException('The server returned an invalid place.');
   }
@@ -319,7 +319,7 @@ class FoodieApi {
   }) async => _api.put(
     '/api/v1/user/delivery-address',
     auth: true,
-    body: {'address': address, 'city': city, 'phone': phone},
+    body: {'address': address, 'city': city, 'phone': phone, if (latitude != null) 'latitude': latitude, if (longitude != null) 'longitude': longitude},
   );
 
   Future<dynamic> placeOrder(Map<String, dynamic> body) =>
