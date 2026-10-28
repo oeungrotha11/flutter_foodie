@@ -45,8 +45,9 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
     });
 
     try {
-      final response =
-          await FoodieApi.instance.checkBakongTransaction(widget.md5);
+      final response = await FoodieApi.instance.checkBakongTransaction(
+        widget.md5,
+      );
       final code = response['responseCode'];
       final isFound = code is num && code.toInt() == 0;
 
@@ -56,14 +57,15 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
         _statusMessage = isFound
             ? 'Bakong returned a matching transaction. The order still needs final payment confirmation from the server.'
             : (response['responseMessage']?.toString() ??
-                'No completed transaction was found yet. If you just paid, wait a moment and check again.');
+                  'No completed transaction was found yet. If you just paid, wait a moment and check again.');
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = error is ApiException
+        _errorMessage =
+            error is ApiException && !error.message.startsWith('/api/')
             ? error.message
-            : 'Could not check the payment right now. Please try again.';
+            : 'Unable to check payment status. Please try again.';
       });
     } finally {
       if (mounted) setState(() => _checking = false);
@@ -86,8 +88,7 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             const SizedBox(height: 4),
-            const Icon(Icons.qr_code_2_rounded,
-                size: 36, color: _brandColor),
+            const Icon(Icons.qr_code_2_rounded, size: 36, color: _brandColor),
             const SizedBox(height: 10),
             const Text(
               'Scan to pay',
@@ -134,8 +135,10 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
               ),
               child: Column(
                 children: [
-                  const Text('Amount to pay',
-                      style: TextStyle(color: _mutedColor, fontSize: 13)),
+                  const Text(
+                    'Amount to pay',
+                    style: TextStyle(color: _mutedColor, fontSize: 13),
+                  ),
                   const SizedBox(height: 5),
                   Text(
                     '${widget.currency} ${widget.amount.toStringAsFixed(2)}',
@@ -163,8 +166,8 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
                   color: _errorMessage != null
                       ? const Color(0xFFFFF0F0)
                       : (_transactionFound
-                          ? const Color(0xFFEAF7EF)
-                          : const Color(0xFFFFF7E6)),
+                            ? const Color(0xFFEAF7EF)
+                            : const Color(0xFFFFF7E6)),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -174,13 +177,13 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
                       _errorMessage != null
                           ? Icons.error_outline
                           : (_transactionFound
-                              ? Icons.check_circle_outline
-                              : Icons.info_outline),
+                                ? Icons.check_circle_outline
+                                : Icons.info_outline),
                       color: _errorMessage != null
                           ? Colors.red
                           : (_transactionFound
-                              ? Colors.green
-                              : Colors.orange.shade800),
+                                ? Colors.green
+                                : Colors.orange.shade800),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -202,13 +205,16 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : const Icon(Icons.refresh_rounded),
                 label: Text(
-                  _checking ? 'Checking payment...' : 'I have paid — check status',
+                  _checking
+                      ? 'Checking payment...'
+                      : 'I have paid — check status',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _brandColor,
@@ -233,20 +239,22 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
   }
 
   Widget _detailRow(String label, String value) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(label,
-                style: const TextStyle(color: _mutedColor, fontSize: 12)),
-          ),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: const TextStyle(color: _mutedColor, fontSize: 12),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Flexible(
+        child: Text(
+          value,
+          textAlign: TextAlign.right,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
+    ],
+  );
 }
