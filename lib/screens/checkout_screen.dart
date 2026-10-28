@@ -137,7 +137,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       return;
     }
-    if (orderType == 'Delivery' && _deliveryAddress.isEmpty) {
+    if (orderType == 'Delivery' && (_deliveryAddress.isEmpty || _deliveryLatitude == null || _deliveryLongitude == null)) {
       await _openDeliveryAddress();
       return;
     }
