@@ -314,6 +314,8 @@ class FoodieApi {
     required String address,
     required String city,
     required String phone,
+    double? latitude,
+    double? longitude,
   }) async => _api.put(
     '/api/v1/user/delivery-address',
     auth: true,
