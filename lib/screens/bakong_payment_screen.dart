@@ -36,6 +36,8 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
   String? _statusMessage;
   String? _errorMessage;
 
+  bool get _isTestMode => widget.qrPayload.startsWith('FOODIE-TEST-NOT-PAYABLE|');
+
   Future<void> _checkPayment() async {
     if (_checking) return;
     setState(() {
@@ -55,7 +57,9 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
       setState(() {
         _transactionFound = isFound;
         _statusMessage = isFound
-            ? 'Bakong returned a matching transaction. The order still needs final payment confirmation from the server.'
+            ? (_isTestMode
+                ? 'TEST MODE: simulated success only. No payment was made and no money was transferred.'
+                : 'Bakong returned a matching transaction. The order still needs final payment confirmation from the server.')
             : (response['responseMessage']?.toString() ??
                   'No completed transaction was found yet. If you just paid, wait a moment and check again.');
       });
@@ -102,6 +106,21 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
               style: TextStyle(color: _mutedColor, fontSize: 13),
             ),
             const SizedBox(height: 22),
+            if (_isTestMode) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0D9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'DEVELOPMENT TEST MODE: this is a fake, non-payable QR for UI testing. Do not scan it. The status check is simulated; no money is transferred.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF8A4B00), fontSize: 12, height: 1.4, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
             Center(
               child: Container(
                 padding: const EdgeInsets.all(18),
@@ -214,7 +233,7 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
                 label: Text(
                   _checking
                       ? 'Checking payment...'
-                      : 'I have paid — check status',
+                      : (_isTestMode ? 'Simulate test status' : 'I have paid — check status'),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _brandColor,
