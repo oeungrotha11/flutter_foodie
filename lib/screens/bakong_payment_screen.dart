@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:pos_product/screens/home_screen.dart';
 
 import '../services/foodie_api.dart';
 import '../services/api_client.dart';
@@ -37,6 +38,42 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
   String? _errorMessage;
 
   bool get _isTestMode => widget.qrPayload.startsWith('FOODIE-TEST-NOT-PAYABLE|');
+
+  Future<void> _leavePaymentScreen() async {
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave payment screen?'),
+        content: const Text(
+          'Your order has already been created and may remain unpaid. '
+          'Leaving this screen will not cancel the order or confirm payment. '
+          'You can return to shopping and check your order status later.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Stay here'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Back to shopping'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLeave != true || !mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
+  }
 
   Future<void> _checkPayment() async {
     if (_checking) return;
@@ -86,6 +123,11 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          tooltip: 'Back to shopping',
+          onPressed: _leavePaymentScreen,
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
       ),
       body: SafeArea(
         child: ListView(
@@ -247,9 +289,23 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Do not close this screen until you have saved your order number. Payment confirmation must be completed by the server before this order can be treated as paid.',
+              'Payment confirmation must be completed by the server before this order can be treated as paid.',
               textAlign: TextAlign.center,
               style: TextStyle(color: _mutedColor, fontSize: 11, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: _leavePaymentScreen,
+              icon: const Icon(Icons.storefront_outlined),
+              label: const Text('Back to shopping'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _brandColor,
+                side: const BorderSide(color: _brandColor),
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
             ),
           ],
         ),
