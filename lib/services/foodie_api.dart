@@ -274,7 +274,7 @@ class FoodieApi {
   }
 
   Future<List<Map<String, dynamic>>> mapAutocomplete(String input) async {
-    final data = await _api.get('/api/v1/maps/autocomplete', query: {'input': input});
+    final data = await _api.get('/api/v1/maps/autocomplete', query: {'input': input}, auth: true);
     final rows = data is Map ? data['suggestions'] : null;
     return rows is List
         ? rows.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
@@ -291,7 +291,7 @@ class FoodieApi {
     final data = await _api.get('/api/v1/maps/reverse-geocode', query: {
       'latitude': latitude.toString(),
       'longitude': longitude.toString(),
-    });
+    }, auth: true);
     if (data is Map) return Map<String, dynamic>.from(data);
     throw const ApiException('The server returned an invalid address.');
   }
@@ -300,7 +300,7 @@ class FoodieApi {
     final data = await _api.get('/api/v1/maps/route', query: {
       'destinationLatitude': latitude.toString(),
       'destinationLongitude': longitude.toString(),
-    });
+    }, auth: true);
     if (data is Map) return Map<String, dynamic>.from(data);
     throw const ApiException('The server returned an invalid route.');
   }
