@@ -199,7 +199,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           MaterialPageRoute(
             builder: (_) => BakongPaymentScreen(
               orderId: order.id,
-              amount: order.total,
+              amount: (qrResponse['amount'] as num?)?.toDouble() ?? order.total,
               currency: qrResponse['currency']?.toString() ?? 'USD',
               qrPayload: qrPayload,
               md5: md5,
