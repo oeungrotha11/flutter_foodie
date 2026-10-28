@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pos_product/providers/cart_provider.dart';
 import 'package:pos_product/screens/delivery_address_screen.dart';
 import 'package:pos_product/screens/order_success_screen.dart';
+import 'package:pos_product/screens/bakong_payment_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,6 +33,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _loadingRewards = true;
   String? _rewardLoadError;
   int? _selectedRewardId;
+  bool _isPlacingOrder = false;
 
   @override
   void dispose() {
@@ -123,6 +125,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _placeOrder(CartProvider cart) async {
+    if (_isPlacingOrder) return;
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -135,6 +138,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       await _openDeliveryAddress();
       return;
     }
+
+    setState(() => _isPlacingOrder = true);
     try {
       final missingSizeProduct = await _cartItemMissingSize(cart);
       if (missingSizeProduct != null) {
@@ -150,36 +155,88 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return;
       }
 
-    final request = {
-      'orderType': orderType,
-      'paymentMethod': paymentMethod,
-      'deliveryAddress': orderType == 'Delivery' ? _deliveryAddress : '',
-      if (_eligibleReward(cart.totalPrice) != null) 'rewardId': _selectedRewardId,
-      'items': cart.items.map((item) => {
-        'productId': int.tryParse(item.food.id) ?? item.food.id,
-        'quantity': item.quantity,
-        'optionIds': item.selectedOptions.map((option) => option.id).toList(),
-      }).toList(),
-    };
+      final request = {
+        'orderType': orderType,
+        'paymentMethod': paymentMethod,
+        'deliveryAddress': orderType == 'Delivery' ? _deliveryAddress : '',
+        if (_eligibleReward(cart.totalPrice) != null) 'rewardId': _selectedRewardId,
+        'items': cart.items.map((item) => {
+          'productId': int.tryParse(item.food.id) ?? item.food.id,
+          'quantity': item.quantity,
+          'optionIds': item.selectedOptions.map((option) => option.id).toList(),
+        }).toList(),
+      };
+
       final response = await FoodieApi.instance.placeOrder(request);
-      if (response is! Map) throw const ApiException('The server returned an invalid order response.');
+      if (response is! Map) {
+        throw const ApiException('The server returned an invalid order response.');
+      }
       final order = Order.fromJson(Map<String, dynamic>.from(response));
-      final finalTotal = order.total;
+
+      if (paymentMethod == 'QR Payment') {
+        // Use the server-calculated order total, not the cart estimate.
+        // Foodie currently displays prices in USD, so request a USD KHQR.
+        final qrResponse = await FoodieApi.instance.generateBakongQr(
+          amount: order.total,
+          currency: 'USD',
+          billNumber: 'FOODIE-${order.id}',
+          expirationMinutes: 15,
+          merchantName: 'Foodie',
+          merchantCity: 'PHNOM PENH',
+        );
+        final qrPayload = qrResponse['qr']?.toString() ?? '';
+        final md5 = qrResponse['md5']?.toString() ?? '';
+        if (qrPayload.isEmpty || md5.isEmpty) {
+          throw const ApiException('Bakong did not return a usable QR code.');
+        }
+        if (!mounted) return;
+
+        // The order has already been created by the backend. Clear the cart
+        // to avoid accidentally submitting the same items as a second order.
+        cart.clearCart();
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BakongPaymentScreen(
+              orderId: order.id,
+              amount: order.total,
+              currency: qrResponse['currency']?.toString() ?? 'USD',
+              qrPayload: qrPayload,
+              md5: md5,
+            ),
+          ),
+          (route) => false,
+        );
+        return;
+      }
+
       if (!mounted) return;
       cart.clearCart();
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => OrderSuccessScreen(total: finalTotal, orderId: order.id)),
+        MaterialPageRoute(
+          builder: (_) => OrderSuccessScreen(
+            total: order.total,
+            orderId: order.id,
+          ),
+        ),
         (route) => false,
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(error is ApiException ? error.message : 'Unable to place order. Please try again.'),
-        backgroundColor: Colors.red,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error is ApiException
+                ? error.message
+                : 'Unable to place order or prepare payment. Please check your orders before trying again.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isPlacingOrder = false);
     }
-    return;
   }
 
   @override
@@ -302,7 +359,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: () => _placeOrder(cart),
+                  onPressed: _isPlacingOrder ? null : () => _placeOrder(cart),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _brandColor,
                     foregroundColor: Colors.white,
@@ -311,20 +368,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Place order',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                  child: _isPlacingOrder
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Place order',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward_rounded, size: 19),
+                          ],
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, size: 19),
-                    ],
-                  ),
                 ),
               ),
             ],
