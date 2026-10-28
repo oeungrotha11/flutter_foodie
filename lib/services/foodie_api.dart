@@ -332,6 +332,19 @@ class FoodieApi {
         .toList();
   }
 
+  /// Confirms the Bakong Open API token configured on Spring Boot.
+  /// This is diagnostic only; it does not create a QR code or confirm payment.
+  Future<Map<String, dynamic>> verifyBakongToken() async {
+    final data = await _api.post(
+      '/api/v1/bakong/verify-token',
+      auth: true,
+    );
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException(
+      'The server returned an invalid Bakong verification response.',
+    );
+  }
+
   Future<List<dynamic>> orders() async {
     final data = await _api.get(
       '/api/v1/orders',
