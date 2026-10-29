@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -18,6 +20,21 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.pos_product"
+        // Prefer the environment variable (CI), then android/local.properties for local development.
+        // Use fully qualified Java names so Kotlin DSL does not resolve java.util as a Gradle extension.
+        val mapsProperties = Properties()
+        val mapsPropertiesFile = rootProject.file("local.properties")
+        if (mapsPropertiesFile.exists()) {
+            mapsPropertiesFile.inputStream().use { input ->
+                mapsProperties.load(input)
+            }
+        }
+        val mapsApiKey = System.getenv("MAPS_API_KEY")?.takeIf { it.isNotBlank() }
+            ?: mapsProperties.getProperty("maps.api.key")?.trim().orEmpty()
+        if (mapsApiKey.isBlank()) {
+            logger.warn("MAPS_API_KEY is empty. Google Maps will render a blank/grey map until a valid Android Maps SDK key is configured.")
+        }
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

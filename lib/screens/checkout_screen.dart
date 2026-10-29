@@ -29,6 +29,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String orderType = 'Takeaway';
   String paymentMethod = 'Cash';
   String _deliveryAddress = '';
+  double? _deliveryLatitude;
+  double? _deliveryLongitude;
   List<CustomerReward> _rewards = [];
   bool _loadingRewards = true;
   String? _rewardLoadError;
@@ -80,11 +82,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     String address = '';
     try {
       final remote = await FoodieApi.instance.deliveryAddress();
+      _deliveryLatitude = (remote['latitude'] as num?)?.toDouble();
+      _deliveryLongitude = (remote['longitude'] as num?)?.toDouble();
       address = [remote['address'], remote['city']]
           .whereType<String>().map((value) => value.trim())
           .where((value) => value.isNotEmpty).join(', ');
     } catch (_) {
       final prefs = await SharedPreferences.getInstance();
+      _deliveryLatitude = prefs.getDouble('delivery.latitude');
+      _deliveryLongitude = prefs.getDouble('delivery.longitude');
       address = [prefs.getString('delivery.address'), prefs.getString('delivery.city')]
           .whereType<String>().map((value) => value.trim())
           .where((value) => value.isNotEmpty).join(', ');
@@ -134,7 +140,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       return;
     }
-    if (orderType == 'Delivery' && _deliveryAddress.isEmpty) {
+    if (orderType == 'Delivery' && (_deliveryAddress.isEmpty || _deliveryLatitude == null || _deliveryLongitude == null)) {
       await _openDeliveryAddress();
       return;
     }
@@ -155,18 +161,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return;
       }
 
-      final request = {
-        'orderType': orderType,
-        'paymentMethod': paymentMethod,
-        'deliveryAddress': orderType == 'Delivery' ? _deliveryAddress : '',
-        if (_eligibleReward(cart.totalPrice) != null) 'rewardId': _selectedRewardId,
-        'items': cart.items.map((item) => {
-          'productId': int.tryParse(item.food.id) ?? item.food.id,
-          'quantity': item.quantity,
-          'optionIds': item.selectedOptions.map((option) => option.id).toList(),
-        }).toList(),
-      };
-
+    final request = {
+      'orderType': orderType,
+      'paymentMethod': paymentMethod,
+      'deliveryAddress': orderType == 'Delivery' ? _deliveryAddress : '',
+       if (orderType == 'Delivery' && _deliveryLatitude != null) 'deliveryLatitude': _deliveryLatitude,
+      if (orderType == 'Delivery' && _deliveryLongitude != null) 'deliveryLongitude': _deliveryLongitude,
+      if (_eligibleReward(cart.totalPrice) != null) 'rewardId': _selectedRewardId,
+      'items': cart.items.map((item) => {
+        'productId': int.tryParse(item.food.id) ?? item.food.id,
+        'quantity': item.quantity,
+        'optionIds': item.selectedOptions.map((option) => option.id).toList(),
+      }).toList(),
+    };
       final response = await FoodieApi.instance.placeOrder(request);
       if (response is! Map) {
         throw const ApiException('The server returned an invalid order response.');

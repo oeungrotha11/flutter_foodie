@@ -273,6 +273,38 @@ class FoodieApi {
         : <ProductOption>[];
   }
 
+  Future<List<Map<String, dynamic>>> mapAutocomplete(String input) async {
+    final data = await _api.get('/api/v1/maps/autocomplete', query: {'input': input}, auth: true);
+    final rows = data is Map ? data['suggestions'] : null;
+    return rows is List
+        ? rows.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
+        : <Map<String, dynamic>>[];
+  }
+
+  Future<Map<String, dynamic>> mapPlace(String placeId) async {
+    final data = await _api.get('/api/v1/maps/places/${Uri.encodeComponent(placeId)}', auth: true);
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('The server returned an invalid place.');
+  }
+
+  Future<Map<String, dynamic>> reverseGeocode(double latitude, double longitude) async {
+    final data = await _api.get('/api/v1/maps/reverse-geocode', query: {
+      'latitude': latitude.toString(),
+      'longitude': longitude.toString(),
+    }, auth: true);
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('The server returned an invalid address.');
+  }
+
+  Future<Map<String, dynamic>> deliveryRoute(double latitude, double longitude) async {
+    final data = await _api.get('/api/v1/maps/route', query: {
+      'destinationLatitude': latitude.toString(),
+      'destinationLongitude': longitude.toString(),
+    }, auth: true);
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('The server returned an invalid route.');
+  }
+
   Future<Map<String, dynamic>> deliveryAddress() async {
     final data = await _api.get('/api/v1/user/delivery-address', auth: true);
     return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
@@ -282,10 +314,12 @@ class FoodieApi {
     required String address,
     required String city,
     required String phone,
+    double? latitude,
+    double? longitude,
   }) async => _api.put(
     '/api/v1/user/delivery-address',
     auth: true,
-    body: {'address': address, 'city': city, 'phone': phone},
+    body: {'address': address, 'city': city, 'phone': phone, if (latitude != null) 'latitude': latitude, if (longitude != null) 'longitude': longitude},
   );
 
   Future<dynamic> placeOrder(Map<String, dynamic> body) =>
