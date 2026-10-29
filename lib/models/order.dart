@@ -111,6 +111,7 @@ class Order {
 
   Order copyWith({
     OrderStatus? status,
+    String? paymentStatus,
     double? discount,
     List<OrderItem>? items,
   }) {
@@ -125,7 +126,7 @@ class Order {
       itemCount: itemCount,
       createdAt: createdAt,
       status: status ?? this.status,
-      paymentStatus: paymentStatus,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
       discount: discount ?? this.discount,
       rewardId: rewardId,
       rewardTitle: rewardTitle,
