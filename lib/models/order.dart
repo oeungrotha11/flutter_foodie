@@ -85,6 +85,7 @@ class Order {
   final int itemCount;
   final DateTime createdAt;
   final OrderStatus status;
+  final String paymentStatus;
   final double discount;
   final int? rewardId;
   final String rewardTitle;
@@ -101,6 +102,7 @@ class Order {
     required this.itemCount,
     required this.createdAt,
     this.status = OrderStatus.processing,
+    this.paymentStatus = 'UNPAID',
     this.discount = 0,
     this.rewardId,
     this.rewardTitle = '',
@@ -123,6 +125,7 @@ class Order {
       itemCount: itemCount,
       createdAt: createdAt,
       status: status ?? this.status,
+      paymentStatus: paymentStatus,
       discount: discount ?? this.discount,
       rewardId: rewardId,
       rewardTitle: rewardTitle,
@@ -141,6 +144,7 @@ class Order {
     'itemCount': itemCount,
     'createdAt': createdAt.toIso8601String(),
     'status': status.name,
+    'paymentStatus': paymentStatus,
     'discount': discount,
     'rewardId': rewardId,
     'rewardTitle': rewardTitle,
@@ -163,6 +167,7 @@ class Order {
         (status) => status.name == statusName,
         orElse: () => OrderStatus.processing,
       ),
+      paymentStatus: (json['paymentStatus'] ?? 'UNPAID').toString().toUpperCase(),
       discount: _number(json['discount']),
       rewardId: json['rewardId'] is num ? (json['rewardId'] as num).toInt() : int.tryParse('${json['rewardId']}'),
       rewardTitle: (json['rewardTitle'] ?? '').toString(),
