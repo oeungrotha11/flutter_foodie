@@ -167,6 +167,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                       ),
                                       const SizedBox(height: 7),
                                       _statusBadge(order.status),
+                                      const SizedBox(height: 5),
+                                      _paymentStatusBadge(order.paymentStatus),
                                     ],
                                   ),
                                 ],
@@ -383,6 +385,34 @@ class _OrdersScreenState extends State<OrdersScreen> {
       children: [Text(label), Text('\$${amount.toStringAsFixed(2)}')],
     ),
   );
+
+
+  Widget _paymentStatusBadge(String status) {
+    final normalized = status.toUpperCase();
+    final (label, foreground, background) = switch (normalized) {
+      'PAID' => ('Paid', const Color(0xFF217A45), const Color(0xFFE4F5EA)),
+      'PENDING' => ('Payment pending', const Color(0xFF2456A6), const Color(0xFFE8F0FF)),
+      'FAILED' => ('Payment failed', const Color(0xFFB3261E), const Color(0xFFFCE8E6)),
+      'EXPIRED' => ('Payment expired', const Color(0xFF8A4B00), const Color(0xFFFFF3D6)),
+      'REFUNDED' => ('Refunded', const Color(0xFF5D3B8C), const Color(0xFFF0E8FA)),
+      _ => ('Unpaid', const Color(0xFF6B7280), const Color(0xFFF0F1F3)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 
   Widget _statusBadge(OrderStatus status) {
     final (label, foreground, background) = switch (status) {

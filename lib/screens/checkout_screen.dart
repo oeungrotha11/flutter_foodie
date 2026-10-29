@@ -177,6 +177,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         // Use the server-calculated order total, not the cart estimate.
         // Foodie currently displays prices in USD, so request a USD KHQR.
         final qrResponse = await FoodieApi.instance.generateBakongQr(
+          orderId: order.id,
           amount: order.total,
           currency: 'USD',
           billNumber: 'FOODIE-${order.id}',
