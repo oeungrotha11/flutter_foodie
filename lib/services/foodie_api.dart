@@ -366,6 +366,18 @@ class FoodieApi {
         .toList();
   }
 
+  /// Checks a KHQR transaction hash through Spring Boot.
+  /// This does not itself mark any Foodie order as paid.
+  Future<Map<String, dynamic>> checkBakongTransaction(String md5) async {
+    final data = await _api.post(
+      '/api/v1/bakong/check-transaction',
+      auth: true,
+      body: {'md5': md5},
+    );
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('The server returned an invalid Bakong transaction response.');
+  }
+
   Future<List<dynamic>> orders() async {
     final data = await _api.get(
       '/api/v1/orders',
