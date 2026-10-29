@@ -348,6 +348,7 @@ class FoodieApi {
   /// Requests a KHQR payload from the Spring Boot backend.
   /// Use the server-calculated order total when checkout integration is added.
   Future<Map<String, dynamic>> generateBakongQr({
+    required String orderId,
     required double amount,
     String currency = 'KHR',
     required String billNumber,
@@ -359,6 +360,7 @@ class FoodieApi {
       '/api/v1/bakong/generate-qr',
       auth: true,
       body: {
+        'orderId': int.tryParse(orderId) ?? orderId,
         'amount': amount,
         'currency': currency,
         'billNumber': billNumber,
