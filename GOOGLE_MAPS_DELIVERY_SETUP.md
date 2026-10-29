@@ -26,7 +26,13 @@ $env:MAPS_API_KEY = "YOUR_ANDROID_MAPS_KEY"
 flutter run
 ```
 
-The Android Gradle file reads `MAPS_API_KEY` from the environment and passes it to AndroidManifest.xml. Set it again in each new terminal session. For production, use your CI/CD secret store and a release signing certificate restriction.
+The Android Gradle file reads `MAPS_API_KEY` from the environment first, then falls back to `maps.api.key` in `android/local.properties`. The local properties file is machine-specific and must not be committed. For a persistent local setup, add this line to `android/local.properties` (keep the existing `flutter.sdk` line):
+
+```properties
+maps.api.key=YOUR_ANDROID_MAPS_KEY
+```
+
+For PowerShell instead, set `$env:MAPS_API_KEY = "YOUR_ANDROID_MAPS_KEY"` in the same terminal before running Flutter. For production, use your CI/CD secret store and a release signing certificate restriction. A missing key now emits a Gradle warning and will cause the map to remain blank/grey.
 
 ## Spring Boot environment
 
@@ -59,7 +65,8 @@ Checkout > Delivery > Delivery Address > Choose on Map. The map allows tapping a
 
 ## Troubleshooting
 
-- Blank/grey map: check Maps SDK for Android, Android key restrictions, billing, and the `MAPS_API_KEY` environment variable.
+- Blank/grey map: confirm Gradle did not print the warning that `MAPS_API_KEY` is empty; confirm the built app manifest contains a non-empty `com.google.android.geo.API_KEY`; enable Maps SDK for Android and billing; verify the key's Android package restriction is `com.example.pos_product` and its SHA-1 matches the signing certificate for the build you are running. After changing the key, stop the app and rebuild/reinstall it.
+- The map tiles are loaded directly by the Android Maps SDK; the Spring Boot server key is used for autocomplete, geocoding, and routes and cannot fix a grey base map.
 - Autocomplete/geocoding errors: check Places API (New) and Geocoding API are enabled and the server key is valid.
 - Route unavailable: enable Routes API and set the restaurant latitude/longitude environment variables.
 - Location button denied: allow location permission in Android settings; users can still tap/search a location manually.
