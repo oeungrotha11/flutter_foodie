@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -20,7 +22,7 @@ android {
         applicationId = "com.example.pos_product"
         // Prefer the environment variable (CI), then android/local.properties for local development.
         // Use fully qualified Java names so Kotlin DSL does not resolve java.util as a Gradle extension.
-        val mapsProperties = java.util.Properties()
+        val mapsProperties = Properties()
         val mapsPropertiesFile = rootProject.file("local.properties")
         if (mapsPropertiesFile.exists()) {
             mapsPropertiesFile.inputStream().use { input ->
