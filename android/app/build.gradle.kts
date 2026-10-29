@@ -18,6 +18,19 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.pos_product"
+        // Prefer the environment variable (CI), then android/local.properties for local development.
+        val localProperties = java.util.Properties().apply {
+            val propertiesFile = rootProject.file("local.properties")
+            if (propertiesFile.exists()) {
+                propertiesFile.inputStream().use { load(it) }
+            }
+        }
+        val mapsApiKey = System.getenv("MAPS_API_KEY")?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty("maps.api.key")?.trim().orEmpty()
+        if (mapsApiKey.isBlank()) {
+            logger.warn("MAPS_API_KEY is empty. Google Maps will render a blank/grey map until a valid Android Maps SDK key is configured.")
+        }
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
