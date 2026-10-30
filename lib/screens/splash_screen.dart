@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pos_product/screens/home_screen.dart';
+import 'package:pos_product/screens/driver_home_screen.dart';
 import 'package:pos_product/screens/login_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/favorite_provider.dart';
 import '../services/api_client.dart';
+import '../services/foodie_api.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -73,16 +75,21 @@ class _SplashScreenState extends State<SplashScreen>
         (route) => false,
       );
     } else {
-      await context.read<FavoriteProvider>().load();
-      if (!mounted) return;
-      // Token exists → Home
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ),
-        (route) => false,
-      );
+      try {
+        final profile = await FoodieApi.instance.currentUser();
+        if (!mounted) return;
+        final isDriver = profile['role']?.toString().toUpperCase() == 'DRIVER';
+        if (!isDriver) await context.read<FavoriteProvider>().load();
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(context,
+          MaterialPageRoute(builder: (_) => isDriver ? const DriverHomeScreen() : const HomeScreen()),
+          (route) => false);
+      } catch (_) {
+        await ApiClient.instance.clearTokens();
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+      }
     }
   }
 
