@@ -108,6 +108,7 @@ class ApiClient {
     switch (method) {
       case 'POST': return http.post(uri, headers: headers, body: encoded);
       case 'PUT': return http.put(uri, headers: headers, body: encoded);
+      case 'PATCH': return http.patch(uri, headers: headers, body: encoded);
       case 'DELETE': return http.delete(uri, headers: headers, body: encoded);
       default: return http.get(uri, headers: headers);
     }
