@@ -419,6 +419,32 @@ class FoodieApi {
     throw const ApiException('The server returned an invalid Bakong transaction response.');
   }
 
+
+  Future<List<Map<String, dynamic>>> driverCurrentDeliveries() async {
+    final data = await _api.get('/api/v1/driver/deliveries/current', auth: true);
+    if (data is List) return data.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    return const [];
+  }
+
+  Future<void> updateDriverAvailability(bool available) async {
+    await _api.request('PATCH', '/api/v1/driver/availability',
+        body: {'available': available}, auth: true);
+  }
+
+  Future<Map<String, dynamic>> updateDriverStatus(int deliveryId, String status) async {
+    final data = await _api.request('PATCH', '/api/v1/driver/deliveries/$deliveryId/status',
+        body: {'status': status}, auth: true);
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<void> updateDriverLocation({
+    required double latitude,
+    required double longitude,
+  }) async {
+    await _api.post('/api/v1/driver/location', auth: true,
+        body: {'latitude': latitude, 'longitude': longitude});
+  }
+
   Future<List<dynamic>> orders() async {
     final data = await _api.get(
       '/api/v1/orders',
