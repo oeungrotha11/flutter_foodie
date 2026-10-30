@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/order.dart';
 import '../providers/catalog_provider.dart';
 import '../services/foodie_api.dart';
+import 'delivery_tracking_screen.dart';
 import '../providers/navigation_provider.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
 import '../widgets/food_image.dart';
@@ -215,7 +216,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  void _showReceipt(BuildContext context, Order order) {
+  void _showReceipt(BuildContext parentContext, Order order) {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -269,7 +270,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(4),
                                   child: foodImage(
-                                    _receiptImageFor(context, item),
+                                    _receiptImageFor(parentContext, item),
                                     fit: BoxFit.cover,
                                   ),
                                 ),
@@ -352,6 +353,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
           ),
         ),
         actions: [
+          if (order.orderType.toLowerCase().contains('delivery') && order.status == OrderStatus.purchased)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(parentContext, MaterialPageRoute(
+                  builder: (_) => DeliveryTrackingScreen(orderId: order.id)));
+              },
+              child: const Text('Track delivery'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
