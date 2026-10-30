@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../services/foodie_api.dart';
+import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 import '../services/api_client.dart';
 import '../widgets/foodie_sliver_app_bar.dart';
 
@@ -10,313 +12,218 @@ class MapLocationPickerScreen extends StatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
   const MapLocationPickerScreen({super.key, this.initialLatitude, this.initialLongitude});
-
   @override
   State<MapLocationPickerScreen> createState() => _MapLocationPickerScreenState();
 }
 
 class _MapLocationPickerScreenState extends State<MapLocationPickerScreen> {
-  static const _brand = Color(0xFFF5233B);
-  static const _phnomPenh = LatLng(11.5564, 104.9282);
-  final _searchController = TextEditingController();
-  GoogleMapController? _mapController;
-  LatLng? _selected;
-  String _address = '';
-  String _city = 'Phnom Penh';
-  List<Map<String, dynamic>> _suggestions = [];
-  List<LatLng> _route = [];
-  String? _routeDistance;
-  String? _routeDuration;
-  Timer? _debounce;
-  bool _loadingAddress = false;
-  bool _loadingRoute = false;
-  bool _locating = false;
+  static const brand = Color(0xFFF5233B);
+  static const phnomPenh = LatLng(11.5564, 104.9282);
+  static const userAgent = 'FoodieDeliveryApp/1.0';
+  final search = TextEditingController();
+  final map = MapController();
+  Timer? debounce;
+  LatLng? selected;
+  String address = '';
+  String city = 'Phnom Penh';
+  List<Map<String, dynamic>> suggestions = [];
+  List<LatLng> route = [];
+  String? distanceText, durationText;
+  bool loadingAddress = false, loadingRoute = false, locating = false;
 
-  LatLng get _center => (widget.initialLatitude != null && widget.initialLongitude != null)
-      ? LatLng(widget.initialLatitude!, widget.initialLongitude!)
-      : _phnomPenh;
+  LatLng get center => widget.initialLatitude != null && widget.initialLongitude != null
+      ? LatLng(widget.initialLatitude!, widget.initialLongitude!) : phnomPenh;
 
   @override
   void initState() {
     super.initState();
-    _selected = _center;
-    _searchController.addListener(_onSearchChanged);
+    selected = center;
+    search.addListener(searchChanged);
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
-      _resolveCoordinates(_selected!);
+      WidgetsBinding.instance.addPostFrameCallback((_) => resolve(center));
     }
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
-    _searchController.dispose();
-    _mapController?.dispose();
+    debounce?.cancel();
+    search.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged() {
-    _debounce?.cancel();
-    final query = _searchController.text.trim();
-    if (query.length < 2) {
-      setState(() => _suggestions = []);
-      return;
-    }
-    _debounce = Timer(const Duration(milliseconds: 350), () async {
+  void searchChanged() {
+    debounce?.cancel();
+    final q = search.text.trim();
+    if (q.length < 3) { setState(() => suggestions = []); return; }
+    debounce = Timer(const Duration(milliseconds: 700), () async {
       try {
-        final rows = await FoodieApi.instance.mapAutocomplete(query);
-        if (mounted) setState(() => _suggestions = rows);
-      } catch (_) {
-        if (mounted) setState(() => _suggestions = []);
-      }
+        final uri = Uri.https('photon.komoot.io', '/api/', {
+          'q': q, 'limit': '6', 'lat': (selected ?? phnomPenh).latitude.toString(),
+          'lon': (selected ?? phnomPenh).longitude.toString(), 'lang': 'en'
+        });
+        final res = await http.get(uri, headers: {'User-Agent': userAgent});
+        if (res.statusCode != 200) return;
+        final features = (jsonDecode(res.body)['features'] as List? ?? []);
+        final rows = <Map<String, dynamic>>[];
+        for (final f in features) {
+          final p = f['properties'] as Map<String, dynamic>? ?? {};
+          final c = f['geometry']?['coordinates'] as List? ?? [];
+          if (c.length < 2) continue;
+          final label = [p['name'], p['street'], p['district'], p['city'] ?? p['county'], p['state']]
+              .where((v) => v != null && v.toString().isNotEmpty).map((v) => v.toString()).toSet().join(', ');
+          if (label.isNotEmpty) rows.add({'label': label, 'lat': c[1], 'lng': c[0], 'city': p['city'] ?? p['county'] ?? 'Phnom Penh'});
+        }
+        if (mounted) setState(() => suggestions = rows);
+      } catch (_) { if (mounted) setState(() => suggestions = []); }
     });
   }
 
-  Future<void> _chooseSuggestion(Map<String, dynamic> suggestion) async {
+  Future<void> choose(Map<String, dynamic> row) async {
     FocusScope.of(context).unfocus();
-    setState(() {
-      _suggestions = [];
-      _searchController.text = (suggestion['text'] ?? '').toString();
-      _loadingAddress = true;
-    });
-    try {
-      final place = await FoodieApi.instance.mapPlace((suggestion['placeId'] ?? '').toString());
-      final point = LatLng((place['latitude'] as num).toDouble(), (place['longitude'] as num).toDouble());
-      setState(() {
-        _selected = point;
-        _address = (place['address'] ?? suggestion['text'] ?? '').toString();
-        _city = (place['city'] ?? 'Phnom Penh').toString();
-      });
-      await _mapController?.animateCamera(CameraUpdate.newLatLngZoom(point, 16));
-      await _loadRoute(point);
-    } catch (error) {
-      _showError(error);
-    } finally {
-      if (mounted) setState(() => _loadingAddress = false);
-    }
+    final p = LatLng((row['lat'] as num).toDouble(), (row['lng'] as num).toDouble());
+    setState(() { selected = p; address = row['label'].toString(); city = row['city'].toString(); search.text = address; suggestions = []; });
+    map.move(p, 16);
+    await loadRoute(p);
   }
 
-  Future<void> _onMapTap(LatLng point) async {
+  Future<void> mapTap(TapPosition _, LatLng p) async {
     FocusScope.of(context).unfocus();
-    setState(() {
-      _selected = point;
-      _route = [];
-      _routeDistance = null;
-      _routeDuration = null;
-    });
-    await _resolveCoordinates(point);
+    setState(() { selected = p; route = []; distanceText = null; durationText = null; });
+    await resolve(p);
   }
 
-  Future<void> _resolveCoordinates(LatLng point) async {
-    setState(() => _loadingAddress = true);
+  Future<void> resolve(LatLng p) async {
+    setState(() => loadingAddress = true);
     try {
-      final result = await FoodieApi.instance.reverseGeocode(point.latitude, point.longitude);
+      final uri = Uri.https('photon.komoot.io', '/reverse', {'lat': p.latitude.toString(), 'lon': p.longitude.toString(), 'lang': 'en'});
+      final res = await http.get(uri, headers: {'User-Agent': userAgent});
+      if (res.statusCode != 200) throw Exception('Address lookup is temporarily unavailable.');
+      final features = jsonDecode(res.body)['features'] as List? ?? [];
+      if (features.isEmpty) throw Exception('No address found at this location.');
+      final props = features.first['properties'] as Map<String, dynamic>? ?? {};
+      final parts = [props['name'], props['street'], props['district'], props['city'] ?? props['county'], props['state']]
+          .where((v) => v != null && v.toString().isNotEmpty).map((v) => v.toString()).toSet();
       if (!mounted) return;
       setState(() {
-        _address = (result['address'] ?? '').toString();
-        _city = (result['city'] ?? 'Phnom Penh').toString();
-        _searchController.text = _address;
+        address = parts.isEmpty ? p.latitude.toStringAsFixed(6) + ', ' + p.longitude.toStringAsFixed(6) : parts.join(', ');
+        city = (props['city'] ?? props['county'] ?? 'Phnom Penh').toString();
+        search.text = address;
       });
-      await _loadRoute(point);
-    } catch (error) {
-      _showError(error);
-    } finally {
-      if (mounted) setState(() => _loadingAddress = false);
-    }
+      await loadRoute(p);
+    } catch (e) { showError(e); }
+    finally { if (mounted) setState(() => loadingAddress = false); }
   }
 
-  Future<void> _loadRoute(LatLng destination) async {
-    setState(() => _loadingRoute = true);
+  Future<void> loadRoute(LatLng destination) async {
+    // Demo restaurant origin: replace with your real restaurant coordinates before production.
+    const origin = phnomPenh;
+    setState(() => loadingRoute = true);
     try {
-      final result = await FoodieApi.instance.deliveryRoute(destination.latitude, destination.longitude);
-      final points = _decodePolyline((result['encodedPolyline'] ?? '').toString());
+      final coords = origin.longitude.toString() + ',' + origin.latitude.toString() + ';' +
+          destination.longitude.toString() + ',' + destination.latitude.toString();
+      final uri = Uri.https('router.project-osrm.org', '/route/v1/driving/' + coords,
+          {'overview': 'full', 'geometries': 'geojson', 'steps': 'false'});
+      final res = await http.get(uri, headers: {'User-Agent': userAgent});
+      if (res.statusCode != 200) throw Exception('Route service unavailable');
+      final data = jsonDecode(res.body);
+      final routes = data['routes'] as List? ?? [];
+      if (data['code'] != 'Ok' || routes.isEmpty) throw Exception('No driving route found');
+      final r = routes.first;
+      final coordsList = r['geometry']['coordinates'] as List;
+      final points = coordsList.map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble())).toList();
+      final meters = (r['distance'] as num).toDouble();
+      final seconds = (r['duration'] as num).round();
       if (!mounted) return;
-      final meters = (result['distanceMeters'] as num?)?.toDouble();
       setState(() {
-        _route = points;
-        _routeDistance = meters == null ? null : (meters >= 1000 ? (meters / 1000).toStringAsFixed(1) + ' km' : meters.round().toString() + ' m');
-        _routeDuration = (result['duration'] ?? '').toString().replaceAll('s', ' sec');
+        route = points;
+        distanceText = meters >= 1000 ? (meters / 1000).toStringAsFixed(1) + ' km' : meters.round().toString() + ' m';
+        durationText = ((seconds / 60).ceil()).toString() + ' min';
       });
-      if (points.isNotEmpty && _mapController != null) {
-        await _mapController!.animateCamera(CameraUpdate.newLatLngBounds(_bounds(points), 56));
-      }
     } catch (_) {
-      if (mounted) setState(() {
-        _route = [];
-        _routeDistance = null;
-        _routeDuration = null;
-      });
-    } finally {
-      if (mounted) setState(() => _loadingRoute = false);
-    }
+      if (mounted) setState(() { route = []; distanceText = null; durationText = null; });
+    } finally { if (mounted) setState(() => loadingRoute = false); }
   }
 
-  Future<void> _useCurrentLocation() async {
-    setState(() => _locating = true);
+  Future<void> useCurrentLocation() async {
+    setState(() => locating = true);
     try {
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        throw Exception('Location permission was not granted. You can still select a point on the map.');
+        throw Exception('Location permission denied. You can still tap the map.');
       }
-      final position = await Geolocator.getCurrentPosition();
-      final point = LatLng(position.latitude, position.longitude);
-      setState(() => _selected = point);
-      await _mapController?.animateCamera(CameraUpdate.newLatLngZoom(point, 16));
-      await _resolveCoordinates(point);
-    } catch (error) {
-      _showError(error);
-    } finally {
-      if (mounted) setState(() => _locating = false);
-    }
+      final pos = await Geolocator.getCurrentPosition();
+      final p = LatLng(pos.latitude, pos.longitude);
+      setState(() => selected = p);
+      map.move(p, 16);
+      await resolve(p);
+    } catch (e) { showError(e); }
+    finally { if (mounted) setState(() => locating = false); }
   }
 
-  List<LatLng> _decodePolyline(String encoded) {
-    final points = <LatLng>[];
-    var index = 0, lat = 0, lng = 0;
-    while (index < encoded.length) {
-      var result = 0, shift = 0, b = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20 && index < encoded.length);
-      lat += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-      result = 0; shift = 0;
-      do {
-        b = encoded.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20 && index < encoded.length);
-      lng += (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-      points.add(LatLng(lat / 1e5, lng / 1e5));
-    }
-    return points;
-  }
-
-  LatLngBounds _bounds(List<LatLng> points) {
-    var minLat = points.first.latitude, maxLat = minLat;
-    var minLng = points.first.longitude, maxLng = minLng;
-    for (final p in points.skip(1)) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
-    if (minLat == maxLat) { minLat -= 0.002; maxLat += 0.002; }
-    if (minLng == maxLng) { minLng -= 0.002; maxLng += 0.002; }
-    return LatLngBounds(southwest: LatLng(minLat, minLng), northeast: LatLng(maxLat, maxLng));
-  }
-
-  void _showError(Object error) {
+  void showError(Object e) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(error is ApiException ? error.message : error.toString().replaceFirst('Exception: ', '')),
-      backgroundColor: Colors.red,
-    ));
+      content: Text(e is ApiException ? e.message : e.toString().replaceFirst('Exception: ', '')),
+      backgroundColor: Colors.red));
   }
 
-  void _confirm() {
-    if (_selected == null || _address.trim().isEmpty) {
-      _showError(Exception('Choose a delivery point with a resolved address first.'));
-      return;
-    }
-    Navigator.pop(context, {
-      'address': _address,
-      'city': _city,
-      'latitude': _selected!.latitude,
-      'longitude': _selected!.longitude,
-    });
+  void confirm() {
+    if (selected == null || address.trim().isEmpty) { showError(Exception('Choose a delivery point with an address first.')); return; }
+    Navigator.pop(context, {'address': address, 'city': city, 'latitude': selected!.latitude, 'longitude': selected!.longitude});
   }
 
   @override
   Widget build(BuildContext context) {
-    final selected = _selected ?? _phnomPenh;
+    final point = selected ?? phnomPenh;
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: const FoodieAppBar(title: 'Choose Location', showBackButton: true, showSearchButton: false, showCartButton: false),
       body: Stack(children: [
-        GoogleMap(
-          initialCameraPosition: CameraPosition(target: _center, zoom: 14),
-          onMapCreated: (controller) => _mapController = controller,
-          onTap: _onMapTap,
-          myLocationButtonEnabled: false,
-          myLocationEnabled: false,
-          markers: {Marker(markerId: const MarkerId('delivery'), position: selected, infoWindow: const InfoWindow(title: 'Delivery location'))},
-          polylines: _route.isEmpty ? {} : {
-            Polyline(polylineId: const PolylineId('delivery-route'), points: _route, color: _brand, width: 5),
-          },
+        FlutterMap(
+          mapController: map,
+          options: MapOptions(initialCenter: center, initialZoom: 14, onTap: mapTap),
+          children: [
+            TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.example.pos_product'),
+            if (route.isNotEmpty) PolylineLayer(polylines: [Polyline(points: route, color: brand, strokeWidth: 5)]),
+            MarkerLayer(markers: [Marker(point: point, width: 48, height: 48, child: const Icon(Icons.location_pin, color: brand, size: 46))]),
+            RichAttributionWidget(attributions: [TextSourceAttribution('OpenStreetMap contributors'), TextSourceAttribution('Search: Photon by Komoot'), TextSourceAttribution('Routing: OSRM')]),
+          ],
         ),
         SafeArea(child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-            child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(12),
-              child: Column(children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search address or landmark',
-                    prefixIcon: const Icon(Icons.search, color: _brand),
-                    suffixIcon: _loadingAddress
-                        ? const Padding(padding: EdgeInsets.all(14), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
-                        : IconButton(icon: const Icon(Icons.close), onPressed: () { _searchController.clear(); setState(() => _suggestions = []); }),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    filled: true, fillColor: Colors.white,
-                  ),
-                ),
-                if (_suggestions.isNotEmpty)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 220),
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _suggestions.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (context, index) => ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.location_on_outlined, color: _brand),
-                        title: Text((_suggestions[index]['text'] ?? '').toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
-                        onTap: () => _chooseSuggestion(_suggestions[index]),
-                      ),
-                    ),
-                  ),
-              ]),
-            ),
-          ),
+          Padding(padding: const EdgeInsets.fromLTRB(14, 12, 14, 0), child: Material(
+            elevation: 4, borderRadius: BorderRadius.circular(12),
+            child: Column(children: [
+              TextField(controller: search, decoration: InputDecoration(
+                hintText: 'Search address or landmark', prefixIcon: const Icon(Icons.search, color: brand),
+                suffixIcon: loadingAddress ? const Padding(padding: EdgeInsets.all(14), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
+                    : IconButton(icon: const Icon(Icons.close), onPressed: () { search.clear(); setState(() => suggestions = []); }),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), filled: true, fillColor: Colors.white)),
+              if (suggestions.isNotEmpty) ConstrainedBox(constraints: const BoxConstraints(maxHeight: 220),
+                child: ListView.separated(shrinkWrap: true, itemCount: suggestions.length, separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) => ListTile(dense: true, leading: const Icon(Icons.location_on_outlined, color: brand),
+                    title: Text(suggestions[i]['label'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis), onTap: () => choose(suggestions[i])))),
+            ]))),
           const Spacer(),
-          Align(alignment: Alignment.centerRight, child: Padding(
-            padding: const EdgeInsets.only(right: 14, bottom: 12),
-            child: FloatingActionButton.small(
-              heroTag: 'foodie-current-location',
-              backgroundColor: Colors.white,
-              foregroundColor: _brand,
-              onPressed: _locating ? null : _useCurrentLocation,
-              child: _locating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.my_location),
-            ),
-          )),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          Align(alignment: Alignment.centerRight, child: Padding(padding: const EdgeInsets.only(right: 14, bottom: 12),
+            child: FloatingActionButton.small(heroTag: 'foodie-current-location', backgroundColor: Colors.white, foregroundColor: brand,
+              onPressed: locating ? null : useCurrentLocation,
+              child: locating ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.my_location)))),
+          Container(width: double.infinity, padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               const Text('Delivery point', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              Text(_address.isEmpty ? 'Tap the map or search for an address' : _address, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Color(0xFF666872))),
-              if (_routeDistance != null || _loadingRoute)
-                Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [
-                  if (_loadingRoute) const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                  else const Icon(Icons.route, color: _brand, size: 16),
-                  const SizedBox(width: 7),
-                  Text(_loadingRoute ? 'Calculating delivery route…' : 'Route: ' + (_routeDistance ?? '') + ' · ' + (_routeDuration ?? ''), style: const TextStyle(fontSize: 12, color: Color(0xFF666872))),
-                ])),
+              Text(address.isEmpty ? 'Tap the map or search for an address' : address, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Color(0xFF666872))),
+              if (distanceText != null || loadingRoute) Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [
+                if (loadingRoute) const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) else const Icon(Icons.route, color: brand, size: 16),
+                const SizedBox(width: 7), Text(loadingRoute ? 'Calculating delivery route…' : 'Route: ' + (distanceText ?? '') + ' · ' + (durationText ?? ''), style: const TextStyle(fontSize: 12, color: Color(0xFF666872))),
+              ])),
               const SizedBox(height: 14),
-              SizedBox(width: double.infinity, height: 46, child: ElevatedButton(
-                onPressed: _confirm,
-                style: ElevatedButton.styleFrom(backgroundColor: _brand, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                child: const Text('CONFIRM LOCATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-              )),
-            ]),
-          ),
+              SizedBox(width: double.infinity, height: 46, child: ElevatedButton(onPressed: confirm,
+                style: ElevatedButton.styleFrom(backgroundColor: brand, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                child: const Text('CONFIRM LOCATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)))),
+            ])),
         ])),
       ]),
     );
