@@ -45,7 +45,13 @@ class _LoginScreenState extends State<LoginScreen> {
         emailController.text.trim(),
         passwordController.text,
       );
+      final profile = await FoodieApi.instance.currentUser();
       if (!mounted) return;
+      if (profile['role']?.toString().toUpperCase() == 'DRIVER') {
+        Navigator.pushAndRemoveUntil(context,
+          MaterialPageRoute(builder: (_) => const DriverHomeScreen()), (_) => false);
+        return;
+      }
 
       unawaited(context.read<CatalogProvider>().load());
       unawaited(context.read<FavoriteProvider>().load());
