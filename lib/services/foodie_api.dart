@@ -420,6 +420,12 @@ class FoodieApi {
   }
 
 
+  Future<Map<String, dynamic>> trackDelivery(String orderId) async {
+    final data = await _api.get('/api/v1/customer/deliveries/order/$orderId', auth: true);
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('Delivery tracking is not available yet.');
+  }
+
   Future<List<Map<String, dynamic>>> driverCurrentDeliveries() async {
     final data = await _api.get('/api/v1/driver/deliveries/current', auth: true);
     if (data is List) return data.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
