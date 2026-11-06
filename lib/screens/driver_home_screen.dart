@@ -17,6 +17,8 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   List<Map<String, dynamic>> _deliveries = [];
   bool _loading = true;
+  bool _isOnline = false;
+  bool _savingAvailability = false;
   bool _sharingLocation = false;
   String? _error;
   StreamSubscription<Position>? _positionSubscription;
@@ -25,19 +27,51 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDeliveries();
+    _loadDashboard();
   }
 
-  Future<void> _loadDeliveries() async {
+  Future<void> _loadDashboard() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final rows = await FoodieApi.instance.driverCurrentDeliveries();
+      final results = await Future.wait([
+        FoodieApi.instance.driverCurrentDeliveries(),
+        FoodieApi.instance.driverAvailability(),
+      ]);
       if (!mounted) return;
-      setState(() { _deliveries = rows; _loading = false; });
-      if (rows.isNotEmpty) await _startLocationSharing();
+      final rows = results[0] as List<Map<String, dynamic>>;
+      final online = results[1] as bool;
+      setState(() {
+        _deliveries = rows;
+        _isOnline = online;
+        _loading = false;
+      });
+      if (rows.isNotEmpty) {
+        await _startLocationSharing();
+      } else {
+        await _stopLocationSharing();
+      }
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e is ApiException ? e.message : e.toString(); _loading = false; });
+      setState(() {
+        _error = e is ApiException ? e.message : e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _setOnline(bool value) async {
+    if (_savingAvailability || value == _isOnline) return;
+    setState(() => _savingAvailability = true);
+    try {
+      await FoodieApi.instance.updateDriverAvailability(value);
+      if (!mounted) return;
+      setState(() => _isOnline = value);
+      _showMessage(value ? 'You are now online and can receive deliveries.' : 'You are now offline.');
+    } catch (e) {
+      _showMessage(e is ApiException ? e.message : 'Could not update availability.');
+      await _loadDashboard();
+    } finally {
+      if (mounted) setState(() => _savingAvailability = false);
     }
   }
 
@@ -57,6 +91,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       _showMessage('Location permission is required during an active delivery.');
       return;
     }
+    if (!mounted) return;
     setState(() => _sharingLocation = true);
     const settings = LocationSettings(
       accuracy: LocationAccuracy.high,
@@ -89,8 +124,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         (delivery['id'] as num).toInt(), status,
       );
       _showMessage('Delivery status updated: $status');
-      await _loadDeliveries();
-      if (_deliveries.isEmpty) await _stopLocationSharing();
+      await _loadDashboard();
     } catch (e) {
       _showMessage(e is ApiException ? e.message : 'Could not update delivery.');
     }
@@ -131,51 +165,72 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         title: const Text('Driver dashboard'),
         backgroundColor: const Color(0xFFF5233B),
         foregroundColor: Colors.white,
-        actions: [IconButton(onPressed: _loadDeliveries, icon: const Icon(Icons.refresh)),
-          IconButton(onPressed: _logout, icon: const Icon(Icons.logout))],
+        actions: [
+          IconButton(onPressed: _loadDashboard, icon: const Icon(Icons.refresh)),
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+        ],
       ),
       body: _loading ? const Center(child: CircularProgressIndicator())
         : _error != null ? Center(child: Padding(
             padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min,
               children: [Text(_error!, textAlign: TextAlign.center), const SizedBox(height: 12),
-                ElevatedButton(onPressed: _loadDeliveries, child: const Text('Retry'))])))
-        : active == null ? const Center(child: Text('No active delivery assigned yet.'))
+                ElevatedButton(onPressed: _loadDashboard, child: const Text('Retry'))])))
         : Column(children: [
-            SizedBox(height: 300, child: FlutterMap(
-              options: MapOptions(initialCenter: center, initialZoom: 14),
-              children: [
-                TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.pos_product'),
-                MarkerLayer(markers: [
-                  if (_currentPosition != null) Marker(point: _currentPosition!, width: 42, height: 42,
-                    child: const Icon(Icons.delivery_dining, color: Colors.blue, size: 36)),
-                  if (destination != null) Marker(point: destination, width: 42, height: 42,
-                    child: const Icon(Icons.location_pin, color: Colors.red, size: 40)),
+            Card(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: SwitchListTile(
+                secondary: Icon(
+                  _isOnline ? Icons.wifi : Icons.wifi_off,
+                  color: _isOnline ? Colors.green : Colors.grey,
+                ),
+                title: Text(_isOnline ? 'You are Online' : 'You are Offline',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(_isOnline
+                  ? 'You can receive delivery assignments.'
+                  : 'Turn on to become available for delivery assignments.'),
+                value: _isOnline,
+                onChanged: _savingAvailability ? null : _setOnline,
+              ),
+            ),
+            if (active == null)
+              const Expanded(child: Center(child: Text('No active delivery assigned yet.')))
+            else ...[
+              SizedBox(height: 280, child: FlutterMap(
+                options: MapOptions(initialCenter: center, initialZoom: 14),
+                children: [
+                  TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.pos_product'),
+                  MarkerLayer(markers: [
+                    if (_currentPosition != null) Marker(point: _currentPosition!, width: 42, height: 42,
+                      child: const Icon(Icons.delivery_dining, color: Colors.blue, size: 36)),
+                    if (destination != null) Marker(point: destination, width: 42, height: 42,
+                      child: const Icon(Icons.location_pin, color: Colors.red, size: 40)),
+                  ]),
+                ],
+              )),
+              Expanded(child: ListView(padding: const EdgeInsets.all(16), children: [
+                Text('Order #${active['orderId'] ?? ''}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(active['deliveryAddress']?.toString() ?? 'Delivery address unavailable'),
+                const SizedBox(height: 8),
+                Text('Status: ${active['status'] ?? 'ASSIGNED'}'),
+                if (active['etaMinutes'] != null) Text('Estimated time: ${active['etaMinutes']} minutes'),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Icon(_sharingLocation ? Icons.gps_fixed : Icons.gps_not_fixed,
+                    color: _sharingLocation ? Colors.green : Colors.orange),
+                  const SizedBox(width: 8),
+                  Text(_sharingLocation ? 'Sharing live location' : 'Location sharing is off'),
                 ]),
-              ],
-            )),
-            Expanded(child: ListView(padding: const EdgeInsets.all(16), children: [
-              Text('Order #${active['orderId'] ?? ''}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(active['deliveryAddress']?.toString() ?? 'Delivery address unavailable'),
-              const SizedBox(height: 8),
-              Text('Status: ${active['status'] ?? 'ASSIGNED'}'),
-              if (active['etaMinutes'] != null) Text('Estimated time: ${active['etaMinutes']} minutes'),
-              const SizedBox(height: 12),
-              Row(children: [
-                Icon(_sharingLocation ? Icons.gps_fixed : Icons.gps_not_fixed,
-                  color: _sharingLocation ? Colors.green : Colors.orange),
-                const SizedBox(width: 8),
-                Text(_sharingLocation ? 'Sharing live location' : 'Location sharing is off'),
-              ]),
-              const SizedBox(height: 18),
-              if (active['status'] == 'ASSIGNED')
-                ElevatedButton(onPressed: () => _advance(active, 'PICKED_UP'), child: const Text('Confirm pickup')),
-              if (active['status'] == 'PICKED_UP')
-                ElevatedButton(onPressed: () => _advance(active, 'ON_THE_WAY'), child: const Text('Start delivery')),
-              if (active['status'] == 'ON_THE_WAY')
-                ElevatedButton(onPressed: () => _advance(active, 'DELIVERED'), child: const Text('Mark as delivered')),
-            ])),
+                const SizedBox(height: 18),
+                if (active['status'] == 'ASSIGNED')
+                  ElevatedButton(onPressed: () => _advance(active, 'PICKED_UP'), child: const Text('Confirm pickup')),
+                if (active['status'] == 'PICKED_UP')
+                  ElevatedButton(onPressed: () => _advance(active, 'ON_THE_WAY'), child: const Text('Start delivery')),
+                if (active['status'] == 'ON_THE_WAY')
+                  ElevatedButton(onPressed: () => _advance(active, 'DELIVERED'), child: const Text('Mark as delivered')),
+              ])),
+            ],
           ]),
     );
   }
