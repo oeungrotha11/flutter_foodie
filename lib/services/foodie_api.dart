@@ -407,6 +407,17 @@ class FoodieApi {
     throw const ApiException('The server returned an invalid Bakong QR response.');
   }
 
+  /// Cancels an unpaid Bakong request after the backend checks once more for payment.
+  Future<Map<String, dynamic>> cancelBakongPayment(String md5) async {
+    final data = await _api.post(
+      '/api/v1/bakong/cancel-payment',
+      auth: true,
+      body: {'md5': md5},
+    );
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw const ApiException('The server returned an invalid payment cancellation response.');
+  }
+
   /// Checks a KHQR transaction hash through Spring Boot.
   /// This does not itself mark any Foodie order as paid.
   Future<Map<String, dynamic>> checkBakongTransaction(String md5) async {
