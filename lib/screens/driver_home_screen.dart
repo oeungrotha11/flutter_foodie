@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/foodie_api.dart';
@@ -23,6 +25,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   String? _error;
   StreamSubscription<Position>? _positionSubscription;
   LatLng? _currentPosition;
+  LatLng? _deliveryDestination;
+  LatLng? _lastRouteStart;
+  LatLng? _lastRouteDestination;
+  List<LatLng> _routePoints = [];
+  bool _routeLoading = false;
+  int _routeRequestId = 0;
 
   @override
   void initState() {
@@ -40,10 +48,29 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       if (!mounted) return;
       final rows = results[0] as List<Map<String, dynamic>>;
       final online = results[1] as bool;
+      final active = rows.isEmpty ? null : rows.first;
+      final destinationLat =
+          (active?['destinationLatitude'] as num?)?.toDouble();
+      final destinationLng =
+          (active?['destinationLongitude'] as num?)?.toDouble();
+      final nextDestination =
+          destinationLat != null && destinationLng != null
+              ? LatLng(destinationLat, destinationLng)
+              : null;
+      final destinationChanged =
+          _deliveryDestination != nextDestination;
+
       setState(() {
         _deliveries = rows;
         _isOnline = online;
+        _deliveryDestination = nextDestination;
         _loading = false;
+        if (destinationChanged) {
+          _routePoints = [];
+          _lastRouteStart = null;
+          _lastRouteDestination = null;
+          _routeRequestId++;
+        }
       });
       if (rows.isNotEmpty) {
         await _startLocationSharing();
@@ -100,7 +127,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     _positionSubscription = Geolocator.getPositionStream(locationSettings: settings)
         .listen((position) async {
       final point = LatLng(position.latitude, position.longitude);
-      if (mounted) setState(() => _currentPosition = point);
+      if (mounted) {
+        setState(() => _currentPosition = point);
+        final destination = _deliveryDestination;
+        if (destination != null) {
+          _updateRouteIfNeeded(point, destination);
+        }
+      }
       try {
         await FoodieApi.instance.updateDriverLocation(
           latitude: position.latitude,
@@ -110,6 +143,83 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         debugPrint('Driver location update failed: $e');
       }
     }, onError: (e) => debugPrint('GPS stream error: $e'));
+  }
+
+
+  void _updateRouteIfNeeded(LatLng start, LatLng destination) {
+    final destinationChanged = _lastRouteDestination != destination;
+    final movedEnough = _lastRouteStart == null ||
+        Geolocator.distanceBetween(
+              _lastRouteStart!.latitude,
+              _lastRouteStart!.longitude,
+              start.latitude,
+              start.longitude,
+            ) >=
+            100;
+
+    if (_routeLoading || (!destinationChanged && !movedEnough)) return;
+    _fetchRoute(start, destination);
+  }
+
+  Future<void> _fetchRoute(LatLng start, LatLng destination) async {
+    final requestId = ++_routeRequestId;
+    if (mounted) setState(() => _routeLoading = true);
+
+    try {
+      // OSRM expects longitude,latitude (not latitude,longitude).
+      final uri = Uri.https(
+        'router.project-osrm.org',
+        '/route/v1/driving/'
+            '${start.longitude},${start.latitude};'
+            '${destination.longitude},${destination.latitude}',
+        {
+          'overview': 'full',
+          'geometries': 'geojson',
+          'steps': 'false',
+        },
+      );
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: 15),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Routing service returned ${response.statusCode}');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data['code'] != 'Ok') {
+        throw Exception(data['message']?.toString() ?? 'No route found');
+      }
+
+      final routes = data['routes'] as List<dynamic>;
+      if (routes.isEmpty) throw Exception('No driving route found');
+
+      final geometry =
+          (routes.first as Map<String, dynamic>)['geometry']
+              as Map<String, dynamic>;
+      final coordinates = geometry['coordinates'] as List<dynamic>;
+      final points = coordinates.map((coordinate) {
+        final pair = coordinate as List<dynamic>;
+        // GeoJSON coordinates are [longitude, latitude].
+        return LatLng(
+          (pair[1] as num).toDouble(),
+          (pair[0] as num).toDouble(),
+        );
+      }).toList();
+
+      if (!mounted || requestId != _routeRequestId) return;
+      setState(() {
+        _routePoints = points;
+        _lastRouteStart = start;
+        _lastRouteDestination = destination;
+      });
+    } catch (e) {
+      debugPrint('Could not load delivery route: $e');
+    } finally {
+      if (mounted && requestId == _routeRequestId) {
+        setState(() => _routeLoading = false);
+      }
+    }
   }
 
   Future<void> _stopLocationSharing() async {
@@ -202,6 +312,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 children: [
                   TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.example.pos_product'),
+                  if (_routePoints.length > 1)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _routePoints,
+                          strokeWidth: 5,
+                          color: const Color(0xFF1976D2),
+                        ),
+                      ],
+                    ),
                   MarkerLayer(markers: [
                     if (_currentPosition != null) Marker(point: _currentPosition!, width: 42, height: 42,
                       child: const Icon(Icons.delivery_dining, color: Colors.blue, size: 36)),
@@ -214,6 +334,26 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 Text('Order #${active['orderId'] ?? ''}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text(active['deliveryAddress']?.toString() ?? 'Delivery address unavailable'),
+                if (_routeLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Finding driving route...'),
+                      ],
+                    ),
+                  ),
+                if (!_routeLoading && _routePoints.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text('Driving route shown on map'),
+                  ),
                 const SizedBox(height: 8),
                 Text('Status: ${active['status'] ?? 'ASSIGNED'}'),
                 if (active['etaMinutes'] != null) Text('Estimated time: ${active['etaMinutes']} minutes'),
