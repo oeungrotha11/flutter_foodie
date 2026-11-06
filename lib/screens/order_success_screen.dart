@@ -67,7 +67,7 @@ class OrderSuccessScreen extends StatelessWidget {
                 // =================================
 
                 Text(
-                  'Your order has been placed successfully.',
+                  'Your payment has been confirmed. Here is your order receipt.',
                   textAlign: TextAlign.center,
 
                   style: TextStyle(
