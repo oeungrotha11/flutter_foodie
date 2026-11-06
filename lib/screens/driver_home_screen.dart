@@ -185,11 +185,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 ),
                 title: Text(_isOnline ? 'You are Online' : 'You are Offline',
                   style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(_isOnline
-                  ? 'You can receive delivery assignments.'
-                  : 'Turn on to become available for delivery assignments.'),
+                subtitle: Text(active != null
+                  ? 'Finish your active delivery before changing availability.'
+                  : _isOnline
+                    ? 'You can receive delivery assignments.'
+                    : 'Turn on to become available for delivery assignments.'),
                 value: _isOnline,
-                onChanged: _savingAvailability ? null : _setOnline,
+                onChanged: (_savingAvailability || active != null) ? null : _setOnline,
               ),
             ),
             if (active == null)
