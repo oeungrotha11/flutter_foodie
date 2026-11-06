@@ -158,7 +158,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final destinationLng = (active?['destinationLongitude'] as num?)?.toDouble();
     final destination = destinationLat != null && destinationLng != null
         ? LatLng(destinationLat, destinationLng) : null;
-    final center = _currentPosition ?? destination ?? const LatLng(11.5564, 104.9282);
+    final center = _currentPosition ?? destination ?? const LatLng(11.563162, 104.898616);
 
     return Scaffold(
       appBar: AppBar(
