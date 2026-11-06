@@ -443,6 +443,13 @@ class FoodieApi {
     return const [];
   }
 
+  Future<bool> driverAvailability() async {
+    final data = await _api.get('/api/v1/driver/availability', auth: true);
+    if (data is bool) return data;
+    if (data is Map && data['available'] is bool) return data['available'] as bool;
+    throw const ApiException('The server returned an invalid driver availability status.');
+  }
+
   Future<void> updateDriverAvailability(bool available) async {
     await _api.request('PATCH', '/api/v1/driver/availability',
         body: {'available': available}, auth: true);
