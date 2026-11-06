@@ -110,7 +110,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       borderRadius: BorderRadius.circular(8),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(8),
-                        onTap: () => _showReceipt(context, order),
+                        onTap: order.paymentStatus == 'PAID' ? () => _showReceipt(context, order) : null,
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
@@ -180,21 +180,35 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 color: Color(0xFFE7EBE6),
                               ),
                               const SizedBox(height: 10),
-                              const Row(
+                              Row(
                                 children: [
                                   Icon(
-                                    Icons.receipt_long_outlined,
-                                    color: Color(0xFF727A73),
+                                    order.paymentStatus == 'PAID'
+                                        ? Icons.receipt_long_outlined
+                                        : Icons.lock_outline,
+                                    color: const Color(0xFF727A73),
                                     size: 16,
                                   ),
-                                  SizedBox(width: 6),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    'View receipt',
-                                    style: TextStyle(
+                                    order.paymentStatus == 'PAID'
+                                        ? 'View receipt'
+                                        : 'Receipt available after payment',
+                                    style: const TextStyle(
                                       color: Color(0xFF727A73),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w500,
                                     ),
+                                  ),
+                                  const Spacer(),
+                                  if (order.paymentStatus == 'PAID')
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: Color(0xFF9AA19B),
+                                      size: 18,
+                                    ),
+                                ],
+                              ),
                                   ),
                                   Spacer(),
                                   Icon(
@@ -217,6 +231,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   void _showReceipt(BuildContext parentContext, Order order) {
+    if (order.paymentStatus != 'PAID') return;
+
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
