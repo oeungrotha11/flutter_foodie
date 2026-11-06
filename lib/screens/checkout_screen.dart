@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pos_product/providers/cart_provider.dart';
 import 'package:pos_product/screens/delivery_address_screen.dart';
-import 'package:pos_product/screens/order_success_screen.dart';
+import 'package:pos_product/screens/home_screen.dart';
 import 'package:pos_product/screens/bakong_payment_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -218,16 +218,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return;
       }
 
+      // Cash and Card are not confirmed by an online payment provider here.
+      // Keep the order, but never show a receipt until its payment is verified.
       if (!mounted) return;
       cart.clearCart();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Your order was submitted. The receipt will be available after payment is confirmed.'),
+          backgroundColor: Color(0xFF287A45),
+        ),
+      );
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => OrderSuccessScreen(
-            total: order.total,
-            orderId: order.id,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
         (route) => false,
       );
     } catch (error) {
