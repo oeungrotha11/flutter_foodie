@@ -71,21 +71,53 @@ class _BakongPaymentScreenState extends State<BakongPaymentScreen> {
     final leave = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Leave payment screen?'),
-        content: Text('Order #${widget.orderId} has already been created. Leaving this screen will not cancel the order or payment request.'),
+        title: const Text('Cancel this order?'),
+        content: Text('If you leave, we will check Bakong one last time. If it is still unpaid, order #${widget.orderId} and its QR request will be cancelled.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Stay here')),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(backgroundColor: _brandColor, foregroundColor: Colors.white),
-            child: const Text('Leave payment'),
+            child: const Text('Cancel order'),
           ),
         ],
       ),
     );
     if (leave == true && mounted) {
-      _pollTimer?.cancel();
-      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+      try {
+        final result = await FoodieApi.instance.cancelBakongPayment(widget.md5);
+        if (!mounted) return;
+        _pollTimer?.cancel();
+
+        if (result['paymentStatus']?.toString().toUpperCase() == 'PAID') {
+          _completed = true;
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderSuccessScreen(
+                total: widget.amount,
+                orderId: widget.orderId,
+              ),
+            ),
+            (route) => false,
+          );
+          return;
+        }
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not cancel this payment yet: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
